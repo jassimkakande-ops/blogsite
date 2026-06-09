@@ -122,15 +122,15 @@ export default function SeriesDetailsPage() {
       {episodes.length > 0 && (
         <div className="container mx-auto px-6 mt-12">
           <h2 className="text-2xl font-bold mb-6">Episodes - Season {selectedSeason}</h2>
-          <div className="space-y-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             {episodes.map((episode) => (
               <div 
                 key={episode.id} 
-                className="bg-gray-800 rounded-lg overflow-hidden hover:bg-gray-700 cursor-pointer transition group flex"
+                className="bg-gray-800 rounded-lg overflow-hidden hover:bg-gray-700 cursor-pointer transition group flex flex-col"
                 onClick={() => handleWatch(episode.episode_number)}
               >
-                {/* Episode Thumbnail - Left Side */}
-                <div className="w-64 flex-shrink-0 relative bg-gray-900">
+                {/* Episode Thumbnail - Top */}
+                <div className="w-full relative bg-gray-900">
                   <div className="aspect-video relative">
                     <img
                       src={
@@ -141,17 +141,17 @@ export default function SeriesDetailsPage() {
                         episode.backdrop_url ||
                         series.thumbnail_url ||
                         series.poster_path ||
-                        `https://via.placeholder.com/640x360/1f2937/f97316?text=Episode+${episode.episode_number}`
+                        `https://via.placeholder.com/320x180/1f2937/f97316?text=Episode+${episode.episode_number}`
                       }
                       alt={`Episode ${episode.episode_number}`}
                       className="w-full h-full object-cover"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
-                        target.src = `https://via.placeholder.com/640x360/1f2937/f97316?text=Episode+${episode.episode_number}`;
+                        target.src = `https://via.placeholder.com/320x180/1f2937/f97316?text=Episode+${episode.episode_number}`;
                       }}
                     />
-                    {/* Hover overlay with play and download buttons */}
-                    <div className="absolute inset-0 flex items-center justify-center gap-4 bg-black/60 opacity-0 group-hover:opacity-100 transition">
+                    {/* Hover overlay with play button */}
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition">
                       <button 
                         className="w-12 h-12 rounded-full bg-orange-500 hover:bg-orange-600 flex items-center justify-center transition"
                         onClick={(e) => {
@@ -163,32 +163,22 @@ export default function SeriesDetailsPage() {
                           <path d="M8 5v14l11-7z" />
                         </svg>
                       </button>
-                      <button 
-                        className="w-12 h-12 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center transition"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                      </button>
+                    </div>
+                    {/* Episode number badge */}
+                    <div className="absolute top-2 left-2 bg-black/70 text-white px-2 py-1 rounded text-xs font-bold">
+                      {episode.episode_number}
                     </div>
                   </div>
                 </div>
                 
-                {/* Episode Info - Right Side */}
-                <div className="flex-1 p-4 flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex-1">
-                        <h3 className="font-bold text-lg mb-1">
-                          {episode.episode_number}. {episode.title || episode.name || `Episode ${episode.episode_number}`}
-                        </h3>
-                        {episode.description && (
-                          <p className="text-sm text-gray-400 line-clamp-2">{episode.description}</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
+                {/* Episode Info - Bottom */}
+                <div className="p-3 flex flex-col flex-1">
+                  <h3 className="font-semibold text-sm mb-1 line-clamp-2">
+                    {episode.title || episode.name || `Episode ${episode.episode_number}`}
+                  </h3>
+                  {episode.description && (
+                    <p className="text-xs text-gray-400 line-clamp-2">{episode.description}</p>
+                  )}
                 </div>
               </div>
             ))}
