@@ -141,6 +141,7 @@ export default function HomePage() {
   const [vjContent, setVJContent] = useState<VJContent[]>([]);
   const [kilaxExclusive, setKilaxExclusive] = useState<VJContent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [genresLoaded, setGenresLoaded] = useState(false);
   const [authModal, setAuthModal] = useState<{
     isOpen: boolean;
     action: 'play' | 'download';
@@ -170,10 +171,39 @@ export default function HomePage() {
         setLatestMovies(latestMoviesResult.data);
         setLatestSeries(latestSeriesResult.data);
         setKilaxExclusive(kilaxExclusiveData);
-        setGenreRows(genreRows);
+        
+        let finalGenreRows = genreRows;
+        // If API returned no genres, try to build some from the content we just fetched
+        if (!finalGenreRows || finalGenreRows.length === 0) {
+           const allContent = [...latestMoviesResult.data, ...latestSeriesResult.data, ...kilaxExclusiveData];
+           const genreMap = new Map<string, any[]>();
+           allContent.forEach(item => {
+             if (item.genres && Array.isArray(item.genres)) {
+               item.genres.forEach((g: string) => {
+                 if (!genreMap.has(g)) genreMap.set(g, []);
+                 if (!genreMap.get(g)!.find(existing => existing.id === item.id)) {
+                   genreMap.get(g)!.push(item);
+                 }
+               });
+             }
+           });
+           
+           // Convert map to array and sort by number of items
+           const extractedGenres = Array.from(genreMap.entries())
+             .map(([name, movies]) => ({ name, movies }))
+             .sort((a, b) => b.movies.length - a.movies.length)
+             .slice(0, 3); // Take top 3
+             
+           // Only keep genres with at least 2 items to make it look like a row
+           finalGenreRows = extractedGenres.filter(g => g.movies.length >= 2);
+        }
+
+        setGenreRows(finalGenreRows);
+        setGenresLoaded(true);
       } catch (error) {
         console.error('Error fetching data:', error);
         setLoading(false); // Still hide skeleton even on error
+        setGenresLoaded(true);
       }
     }
     fetchCriticalData();
@@ -403,18 +433,18 @@ export default function HomePage() {
                   <div className="flex overflow-x-auto gap-3 pb-4 scrollbar-hide">
                     {genre.movies.map((item) => (
                       <div key={item.id} className="flex-shrink-0 w-[120px] md:w-[150px] lg:w-[160px]">
-                        <NetflixCard content={item} type={item.type} />
+                        <NetflixCard content={item} type={item.type || 'movie'} />
                       </div>
                     ))}
                   </div>
                 </div>
               </section>
             ))
-          ) : (
+          ) : !genresLoaded ? (
             <div className="flex justify-center w-full py-12">
               <InlineSpinner text="Loading genre collections..." />
             </div>
-          )}
+          ) : null}
         </div>
       </div>
 
