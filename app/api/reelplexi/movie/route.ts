@@ -13,6 +13,7 @@ export async function GET(request: Request) {
       )
     }
 
+    console.log('Fetching movie from Reelplexi API:', id)
     const movie = await ReelplexiService.getMovieById(id)
     
     if (!movie) {
@@ -22,8 +23,18 @@ export async function GET(request: Request) {
       )
     }
 
+    console.log('Movie fetched, raw fields:', {
+      id: movie.id,
+      title: movie.title,
+      embed_url: movie.embed_url,
+      video_url: movie.video_url,
+      stream_url: movie.stream_url,
+      proxy_url: movie.proxy_url
+    })
+
     // Get streaming URL
     const streamData = await ReelplexiService.getMovieStream(id)
+    console.log('Stream data:', streamData)
     
     // Get all translated content
     const [allMovies, allSeries] = await Promise.all([
@@ -49,6 +60,8 @@ export async function GET(request: Request) {
       video_url: streamData?.stream_url || movie.video_url,
       stream_url: streamData?.stream_url,
     }
+
+    console.log('Final movie result video_url:', result.video_url)
 
     return NextResponse.json({
       success: true,

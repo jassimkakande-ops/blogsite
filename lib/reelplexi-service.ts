@@ -211,9 +211,11 @@ class ReelplexiService {
   static async getMovieById(id: string): Promise<ReelplexiMovie | null> {
     try {
       const response = await this.getJson(`/v1/movies/${id}`)
+      console.log('Raw API response for movie:', JSON.stringify(response, null, 2))
       const movie = response.data || response
       return movie ? this.normalizeMovie(movie) : null
-    } catch {
+    } catch (error) {
+      console.error('Error fetching movie by ID:', error)
       return null
     }
   }
@@ -249,37 +251,25 @@ class ReelplexiService {
 
   static async getMovieStream(id: string): Promise<{ stream_url?: string; proxy_url?: string; expires_at?: string } | null> {
     try {
-      // Try to get stream from the API first
+      // Try to get stream from the API
       try {
-        const response = await this.getJson(`/v1/movies/${id}`)
-        const movie = response.data || response
+        const response = await this.getJson(`/v1/movies/${id}/stream`)
+        const streamData = response.data || response
         
-        console.log('Movie stream data from API:', {
-          embed_url: movie.embed_url,
-          stream_url: movie.stream_url,
-          proxy_url: movie.proxy_url,
-          video_url: movie.video_url
-        })
+        console.log('Movie stream data from API:', streamData)
         
         // Return the actual URLs from the API
-        if (movie.proxy_url || movie.stream_url) {
+        if (streamData.video_url) {
           return { 
-            stream_url: movie.proxy_url || movie.stream_url,
-            proxy_url: movie.proxy_url,
-            expires_at: movie.expires_at 
+            stream_url: streamData.video_url,
+            proxy_url: streamData.video_url,
           }
         }
       } catch (apiError) {
         console.error('Error fetching movie stream from API:', apiError)
       }
       
-      // Fallback to embed URL
-      const embedUrl = `https://embed.reelplexi.com/movie/${id}?key=${ReelplexiConfig.apiKey}`
-      return { 
-        stream_url: embedUrl,
-        proxy_url: embedUrl,
-        expires_at: undefined 
-      }
+      return null
     } catch (error) {
       console.error('Error getting movie stream:', error)
       return null
@@ -288,38 +278,24 @@ class ReelplexiService {
 
   static async getEpisodeStream(seriesId: string, season: number, episode: number): Promise<{ stream_url?: string; proxy_url?: string; expires_at?: string } | null> {
     try {
-      // Try to get the episode details which should have stream URLs
+      // Try to get the episode stream directly
       try {
-        const episodes = await this.getSeriesEpisodes(seriesId, season)
-        const targetEpisode = episodes.find(ep => ep.episode_number === episode)
+        const response = await this.getJson(`/v1/series/${seriesId}/seasons/${season}/episodes/${episode}/stream`)
+        const streamData = response.data || response
         
-        if (targetEpisode) {
-          console.log('Episode stream data from API:', {
-            embed_url: targetEpisode.embed_url,
-            stream_url: targetEpisode.stream_url,
-            proxy_url: targetEpisode.proxy_url,
-            video_url: targetEpisode.video_url
-          })
-          
-          if (targetEpisode.proxy_url || targetEpisode.stream_url || targetEpisode.video_url) {
-            return { 
-              stream_url: targetEpisode.proxy_url || targetEpisode.stream_url || targetEpisode.video_url,
-              proxy_url: targetEpisode.proxy_url,
-              expires_at: undefined 
-            }
+        console.log('Episode stream data from API:', streamData)
+        
+        if (streamData.video_url) {
+          return { 
+            stream_url: streamData.video_url,
+            proxy_url: streamData.video_url,
           }
         }
       } catch (apiError) {
         console.error('Error fetching episode stream from API:', apiError)
       }
       
-      // Fallback to embed URL
-      const embedUrl = `https://embed.reelplexi.com/tv/${seriesId}/${season}/${episode}?key=${ReelplexiConfig.apiKey}`
-      return { 
-        stream_url: embedUrl,
-        proxy_url: embedUrl,
-        expires_at: undefined 
-      }
+      return null
     } catch (error) {
       console.error('Error getting episode stream:', error)
       return null
@@ -347,7 +323,9 @@ class ReelplexiService {
   static async getMoviesByGenre(genre: string): Promise<ReelplexiMovie[]> {
     try {
       const genreId = genre.toLowerCase()
+      console.log(`Fetching movies for genre: ${genreId} from /v1/genres/${genreId}/movies`)
       const response = await this.getJson(`/v1/genres/${genreId}/movies`)
+      console.log(`Raw genre response:`, JSON.stringify(response, null, 2))
       const data = Array.isArray(response.data) ? response.data : []
       return data.map((item: any) => this.normalizeMovie(item))
     } catch (error) {
