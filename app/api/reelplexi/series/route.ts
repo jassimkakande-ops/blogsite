@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import ReelplexiService from '@/lib/reelplexi-service'
+import ReelplexiService, { type ReelplexiEpisode } from '@/lib/reelplexi-service'
 
 export async function GET(request: Request) {
   try {
@@ -30,7 +30,7 @@ export async function GET(request: Request) {
     }
 
     // Get episodes if season is provided
-    let episodes = []
+    let episodes: ReelplexiEpisode[] = []
     if (season) {
       episodes = await ReelplexiService.getSeriesEpisodes(id, parseInt(season))
     }
