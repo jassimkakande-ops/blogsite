@@ -25,8 +25,21 @@ export async function GET(request: Request) {
     // Get streaming URL
     const streamData = await ReelplexiService.getMovieStream(id)
     
-    // Get related movies
-    const related = await ReelplexiService.getRelatedMovies(id, 1, 6)
+    // Get all translated content
+    const [allMovies, allSeries] = await Promise.all([
+      ReelplexiService.getMovies(1, 50),
+      ReelplexiService.getSeries(1, 50)
+    ])
+
+    // Combine and add type field
+    const combined = [
+      ...allMovies.map(m => ({ ...m, type: 'movie' as const, created_at: m.release_date || new Date().toISOString() })),
+      ...allSeries.map(s => ({ ...s, type: 'series' as const, created_at: s.first_air_date || new Date().toISOString() }))
+    ]
+
+    // Shuffle and take first 20
+    const shuffled = combined.sort(() => Math.random() - 0.5)
+    const related = shuffled.slice(0, 20)
 
     const result = {
       ...movie,
@@ -41,10 +54,7 @@ export async function GET(request: Request) {
       success: true,
       data: {
         movie: result,
-        related: related.map(m => ({
-          ...m,
-          created_at: m.release_date || new Date().toISOString(),
-        }))
+        related
       }
     })
   } catch (error) {
