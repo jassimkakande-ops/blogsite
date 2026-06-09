@@ -4,7 +4,7 @@ import { useSearchParams } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import VideoPlayer from '@/components/VideoPlayer';
-import { ArrowLeft, AlertCircle, ChevronLeft, ChevronRight, Play } from 'lucide-react';
+import { ArrowLeft, AlertCircle, ChevronLeft, ChevronRight, Play, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/components/AuthProvider';
