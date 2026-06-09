@@ -33,10 +33,18 @@ export async function GET(request: Request) {
     let episodes: ReelplexiEpisode[] = []
     if (season) {
       episodes = await ReelplexiService.getSeriesEpisodes(id, parseInt(season))
+      console.log(`Fetched ${episodes.length} episodes for series ${id} season ${season}`)
+      if (episodes.length > 0) {
+        console.log('First episode sample:', JSON.stringify(episodes[0], null, 2))
+      }
     }
 
     // Get related series
     const related = await ReelplexiService.getRelatedSeries(id, 1, 6)
+    console.log(`Fetched ${related.length} related series for series ${id}`)
+    if (related.length > 0) {
+      console.log('First related series sample:', JSON.stringify(related[0], null, 2))
+    }
 
     const result = {
       ...series,

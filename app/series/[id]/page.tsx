@@ -119,35 +119,70 @@ export default function SeriesDetailsPage() {
           <h2 className="text-2xl font-bold mb-6">Episodes - Season {selectedSeason}</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {episodes.map((episode) => (
-              <div key={episode.id} className="bg-gray-800 rounded-lg p-4 hover:bg-gray-700 cursor-pointer transition" onClick={() => handleWatch(episode.episode_number)}>
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-bold">Episode {episode.episode_number}</h3>
-                  <Button size="sm" className="bg-orange-500 hover:bg-orange-600">Play</Button>
+              <div 
+                key={episode.id} 
+                className="bg-gray-800 rounded-lg overflow-hidden hover:bg-gray-700 cursor-pointer transition group"
+                onClick={() => handleWatch(episode.episode_number)}
+              >
+                {/* Episode Thumbnail */}
+                <div className="aspect-video relative bg-gray-900">
+                  <img
+                    src={
+                      episode.thumbnail_url ||
+                      episode.poster_url ||
+                      episode.cover_image_url ||
+                      series.thumbnail_url ||
+                      series.poster_path ||
+                      `https://via.placeholder.com/640x360/1f2937/f97316?text=Episode+${episode.episode_number}`
+                    }
+                    alt={`Episode ${episode.episode_number}`}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = `https://via.placeholder.com/640x360/1f2937/f97316?text=Episode+${episode.episode_number}`;
+                    }}
+                  />
+                  {/* Play button overlay */}
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition">
+                    <div className="w-12 h-12 rounded-full bg-orange-500 flex items-center justify-center">
+                      <svg className="w-6 h-6 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z" />
+                      </svg>
+                    </div>
+                  </div>
                 </div>
-                <p className="text-sm text-gray-400 line-clamp-2">{episode.title}</p>
+                {/* Episode Info */}
+                <div className="p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-bold text-lg">Episode {episode.episode_number}</h3>
+                    <Button size="sm" className="bg-orange-500 hover:bg-orange-600">Play</Button>
+                  </div>
+                  <p className="text-sm font-medium text-white mb-1">{episode.title || episode.name || `Episode ${episode.episode_number}`}</p>
+                  {episode.description && (
+                    <p className="text-sm text-gray-400 line-clamp-2">{episode.description}</p>
+                  )}
+                </div>
               </div>
             ))}
           </div>
         </div>
       )}
       
-      <div className="container mx-auto px-6 mt-12">
+      <div className="container mx-auto px-6 mt-12 pb-12">
         <h2 className="text-2xl font-bold mb-6">Related Series</h2>
-        <div className="flex overflow-x-auto gap-4 pb-4 scrollbar-hide">
-          {related.length > 0 ? (
-            related.map((r) => (
-              <div key={r.id} className="flex-shrink-0 w-[120px] md:w-[150px] lg:w-[160px]">
-                <NetflixCard content={r} type="series" />
-              </div>
-            ))
-          ) : (
-            Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="flex-shrink-0 w-[120px] md:w-[150px]">
-                <div className="aspect-[2/3] rounded-lg bg-gray-800/30 animate-pulse"></div>
-              </div>
-            ))
-          )}
-        </div>
+        {related.length > 0 ? (
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4">
+            {related.map((r) => (
+              <NetflixCard key={r.id} content={r} type="series" />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="aspect-[2/3] rounded-lg bg-gray-800/30 animate-pulse"></div>
+            ))}
+          </div>
+        )}
       </div>
 
       <PremiumUpgradeModal
