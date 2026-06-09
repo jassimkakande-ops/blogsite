@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import ReelplexiService from '@/lib/reelplexi-service'
+import type { ReelplexiSeries } from '@/lib/reelplexi-service'
 
 export async function GET(request: Request) {
   try {
@@ -11,26 +12,36 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: true, data: [] })
     }
 
-    let allContent
-    if (type === 'series') {
-      allContent = await ReelplexiService.getSeries(1, 100)
-    } else {
-      allContent = await ReelplexiService.getMovies(1, 100)
-    }
-    
     const lowerQuery = query.toLowerCase()
-    const filtered = allContent.filter(item => {
-      const title = (item.title || '').toLowerCase()
-      const desc = (item.description || item.overview || '').toLowerCase()
-      return title.includes(lowerQuery) || desc.includes(lowerQuery)
-    })
-
-    const results = filtered.map(item => ({
-      ...item,
-      created_at: type === 'series' ? (item.first_air_date || new Date().toISOString()) : (item.release_date || new Date().toISOString()),
-      published: true,
-      premium: false,
-    }))
+    let results
+    
+    if (type === 'series') {
+      const allSeries = await ReelplexiService.getSeries(1, 100)
+      const filtered = allSeries.filter(item => {
+        const title = (item.title || '').toLowerCase()
+        const desc = (item.description || item.overview || '').toLowerCase()
+        return title.includes(lowerQuery) || desc.includes(lowerQuery)
+      })
+      results = filtered.map(item => ({
+        ...item,
+        created_at: item.first_air_date || new Date().toISOString(),
+        published: true,
+        premium: false,
+      }))
+    } else {
+      const allMovies = await ReelplexiService.getMovies(1, 100)
+      const filtered = allMovies.filter(item => {
+        const title = (item.title || '').toLowerCase()
+        const desc = (item.description || item.overview || '').toLowerCase()
+        return title.includes(lowerQuery) || desc.includes(lowerQuery)
+      })
+      results = filtered.map(item => ({
+        ...item,
+        created_at: item.release_date || new Date().toISOString(),
+        published: true,
+        premium: false,
+      }))
+    }
 
     return NextResponse.json({
       success: true,
