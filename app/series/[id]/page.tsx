@@ -10,6 +10,7 @@ import { FullPageSpinner } from "@/components/LoadingSpinner";
 import { Button } from "@/components/ui/button";
 import { NetflixCard } from "@/components/NetflixCard";
 import { getSeriesByIdClient, getStreamUrlClient } from "@/lib/api-client";
+import { Download } from "lucide-react";
 
 export default function SeriesDetailsPage() {
   const params = useParams();
@@ -25,6 +26,8 @@ export default function SeriesDetailsPage() {
   const [related, setRelated] = useState<any[]>([]);
   const [episodes, setEpisodes] = useState<any[]>([]);
   const [selectedSeason, setSelectedSeason] = useState(1);
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const [selectedDownloadEpisode, setSelectedDownloadEpisode] = useState<any>(null);
 
   useEffect(() => {
     async function fetchSeriesData() {
@@ -101,6 +104,27 @@ export default function SeriesDetailsPage() {
     }
   };
 
+  const handleDownload = async (episode?: any) => {
+    if (!user?.id) {
+      setAuthAction('download');
+      setShowAuthModal(true);
+      return;
+    }
+
+    if (!isPremium) {
+      setShowPremiumUpgradeModal(true);
+      return;
+    }
+
+    if (episode) {
+      setSelectedDownloadEpisode(episode);
+      setShowDownloadModal(true);
+    } else if (episodes.length > 0) {
+      setSelectedDownloadEpisode(episodes[0]); // default to first episode
+      setShowDownloadModal(true);
+    }
+  };
+
   const genres = series.genres || [];
   const vjName = series.vjs?.name || "";
 
@@ -115,7 +139,7 @@ export default function SeriesDetailsPage() {
         genres={genres.length > 0 ? genres : ["Drama"]}
         coverImage={series.cover_image_url || series.backdrop_path || series.thumbnail_url || `https://via.placeholder.com/1920x1080/1f2937/f97316?text=${encodeURIComponent(series.title)}`}
         onWatch={() => handleWatch()}
-        onDownload={() => {}}
+        onDownload={() => handleDownload()}
         primaryColor="#f97316"
       />
 
@@ -151,17 +175,28 @@ export default function SeriesDetailsPage() {
                       }}
                     />
                     {/* Hover overlay with play button */}
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition">
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 group-hover:opacity-100 transition gap-2">
                       <button 
                         className="w-12 h-12 rounded-full bg-orange-500 hover:bg-orange-600 flex items-center justify-center transition"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleWatch(episode.episode_number);
                         }}
+                        title="Watch"
                       >
                         <svg className="w-6 h-6 text-white ml-1" fill="currentColor" viewBox="0 0 24 24">
                           <path d="M8 5v14l11-7z" />
                         </svg>
+                      </button>
+                      <button 
+                        className="w-12 h-12 rounded-full bg-gray-700 hover:bg-gray-600 flex items-center justify-center transition"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDownload(episode);
+                        }}
+                        title="Download"
+                      >
+                        <Download className="w-5 h-5 text-white" />
                       </button>
                     </div>
                     {/* Episode number badge */}
@@ -202,6 +237,35 @@ export default function SeriesDetailsPage() {
           </div>
         )}
       </div>
+
+      {showDownloadModal && selectedDownloadEpisode && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
+          <div className="bg-gray-900 p-8 rounded-xl border border-orange-400 shadow-xl max-w-sm w-full text-center">
+            <h2 className="text-2xl font-bold mb-3 text-orange-400">Download Episode</h2>
+            <p className="text-gray-300 mb-4 line-clamp-2">
+              {series.title} - {selectedDownloadEpisode.title || `Episode ${selectedDownloadEpisode.episode_number}`}
+            </p>
+            <Button
+              className="w-full bg-orange-500 hover:bg-orange-600 mb-3"
+              onClick={() => {
+                const epTitle = selectedDownloadEpisode.title || `Episode_${selectedDownloadEpisode.episode_number}`;
+                const safeTitle = `${series.title}_${epTitle}`.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+                const downloadUrl = `/api/download?id=${series.id}&type=episode&season=${selectedSeason}&episode=${selectedDownloadEpisode.episode_number}&filename=${encodeURIComponent(safeTitle + '.mp4')}`;
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = safeTitle + '.mp4';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setShowDownloadModal(false);
+              }}
+            >
+              Download Now
+            </Button>
+            <Button className="w-full" variant="outline" onClick={() => setShowDownloadModal(false)}>Close</Button>
+          </div>
+        </div>
+      )}
 
       <PremiumUpgradeModal
         isOpen={showPremiumUpgradeModal}

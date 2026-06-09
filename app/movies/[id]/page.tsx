@@ -163,16 +163,14 @@ export default function MovieDetailsPage() {
             <h2 className="text-2xl font-bold mb-3 text-orange-400">Download Movie</h2>
             <Button
               className="w-full bg-orange-500 hover:bg-orange-600 mb-3"
-              onClick={async () => {
-                const streamUrl = await getStreamUrlClient(movie.id, 'movie');
-                if (streamUrl) {
-                  const a = document.createElement('a');
-                  a.href = streamUrl;
-                  a.download = movie.title + '.mp4';
-                  document.body.appendChild(a);
-                  a.click();
-                  document.body.removeChild(a);
-                }
+              onClick={() => {
+                const downloadUrl = `/api/download?id=${movie.id}&type=movie&filename=${encodeURIComponent(movie.title + '.mp4')}`;
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = movie.title + '.mp4';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
                 setShowDownloadModal(false);
               }}
             >
