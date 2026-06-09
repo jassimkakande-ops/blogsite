@@ -37,10 +37,10 @@ export default function AuthRequiredModal({
 
   // Handle auto-close when user has required permissions
   useEffect(() => {
-    if (isOpen && !loading && user && (!requirePremium || isPremium)) {
+    if (isOpen && !loading && user && isPremium) {
       onClose();
     }
-  }, [isOpen, loading, user, requirePremium, isPremium, onClose]);
+  }, [isOpen, loading, user, isPremium, onClose]);
 
   if (!isOpen) return null;
 
@@ -88,7 +88,7 @@ export default function AuthRequiredModal({
   }
 
   // User authenticated but premium required
-  if (requirePremium && !isPremium) {
+  if (!isPremium) {
     return (
       <PremiumRequiredModal
         action={action}
@@ -273,7 +273,7 @@ export function useAuthCheck() {
       return { allowed: false, reason: 'auth_required' };
     }
 
-    if (requirePremium && !isPremium) {
+    if (!isPremium) {
       return { allowed: false, reason: 'premium_required' };
     }
 

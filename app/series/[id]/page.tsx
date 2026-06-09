@@ -79,7 +79,7 @@ export default function SeriesDetailsPage() {
       return;
     }
 
-    if (series.premium && !isPremium) {
+    if (!isPremium) {
       setShowPremiumUpgradeModal(true);
       return;
     }

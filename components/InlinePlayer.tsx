@@ -59,8 +59,8 @@ const InlinePlayer: React.FC<InlinePlayerProps> = ({
       return;
     }
 
-    // Check if episode requires premium and user doesn't have it
-    if (selectedEpisode.premium && !isPremium) {
+    // Check if user has premium (required for all content)
+    if (!isPremium) {
       // Show premium upgrade modal instead of auth modal
       setShowPremiumUpgradeModal(true);
       return;
@@ -83,8 +83,8 @@ const InlinePlayer: React.FC<InlinePlayerProps> = ({
       return;
     }
 
-    // Check if episode requires premium and user doesn't have it
-    if (selectedEpisode.premium && !isPremium) {
+    // Check if user has premium (required for all content)
+    if (!isPremium) {
       // Show premium upgrade modal instead of auth modal
       setShowPremiumUpgradeModal(true);
       return;

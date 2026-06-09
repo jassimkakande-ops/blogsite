@@ -83,7 +83,7 @@ export default function MovieDetailsPage() {
       return;
     }
 
-    if (movie.premium && !isPremium) {
+    if (!isPremium) {
       setShowPremiumUpgradeModal(true);
       return;
     }
@@ -104,7 +104,7 @@ export default function MovieDetailsPage() {
       return;
     }
 
-    if (movie.premium && !isPremium) {
+    if (!isPremium) {
       setShowPremiumUpgradeModal(true);
       return;
     }
