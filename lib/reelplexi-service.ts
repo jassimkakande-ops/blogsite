@@ -239,13 +239,12 @@ class ReelplexiService {
 
   static async getMovieStream(id: string): Promise<{ stream_url?: string; proxy_url?: string; expires_at?: string } | null> {
     try {
-      const response = await this.getJson(`/v1/stream/movie/${id}`)
-      // Response should have proxy_url from Reelplexi
-      const streamUrl = response.proxy_url || response.stream_url || response.url
-      return streamUrl ? { 
-        stream_url: streamUrl,
-        proxy_url: response.proxy_url,
-        expires_at: response.expires_at 
+      // Get movie details which includes embed_url
+      const movie = await this.getMovieById(id)
+      return movie?.embed_url ? { 
+        stream_url: movie.embed_url,
+        proxy_url: movie.embed_url,
+        expires_at: undefined 
       } : null
     } catch (error) {
       console.error('Error getting movie stream:', error)
@@ -255,14 +254,13 @@ class ReelplexiService {
 
   static async getEpisodeStream(seriesId: string, season: number, episode: number): Promise<{ stream_url?: string; proxy_url?: string; expires_at?: string } | null> {
     try {
-      const response = await this.getJson(`/v1/stream/tv/${seriesId}/${season}/${episode}`)
-      // Response should have proxy_url from Reelplexi
-      const streamUrl = response.proxy_url || response.stream_url || response.url
-      return streamUrl ? { 
-        stream_url: streamUrl,
-        proxy_url: response.proxy_url,
-        expires_at: response.expires_at 
-      } : null
+      // Return embed URL for episode
+      const embedUrl = `https://embed.reelplexi.com/tv/${seriesId}/${season}/${episode}?key=${ReelplexiConfig.apiKey}`
+      return { 
+        stream_url: embedUrl,
+        proxy_url: embedUrl,
+        expires_at: undefined 
+      }
     } catch (error) {
       console.error('Error getting episode stream:', error)
       return null
@@ -289,20 +287,24 @@ class ReelplexiService {
 
   static async getMoviesByGenre(genre: string): Promise<ReelplexiMovie[]> {
     try {
-      const response = await this.getJson(`/v1/genres/${genre}/movies`)
+      const genreId = genre.toLowerCase()
+      const response = await this.getJson(`/v1/genres/${genreId}/movies`)
       const data = Array.isArray(response.data) ? response.data : []
       return data.map((item: any) => this.normalizeMovie(item))
-    } catch {
+    } catch (error) {
+      console.error(`Error fetching movies for genre ${genre}:`, error)
       return []
     }
   }
 
   static async getSeriesByGenre(genre: string): Promise<ReelplexiSeries[]> {
     try {
-      const response = await this.getJson(`/v1/genres/${genre}/series`)
+      const genreId = genre.toLowerCase()
+      const response = await this.getJson(`/v1/genres/${genreId}/series`)
       const data = Array.isArray(response.data) ? response.data : []
       return data.map((item: any) => this.normalizeSeries(item))
-    } catch {
+    } catch (error) {
+      console.error(`Error fetching series for genre ${genre}:`, error)
       return []
     }
   }
