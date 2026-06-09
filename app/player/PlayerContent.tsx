@@ -223,9 +223,15 @@ export default function PlayerContent() {
           throw new Error('No video URL available');
         }
 
-        // Use video URL directly - normalizeVideoUrl will proxy through /api/stream
+        // Use video URL directly - for Reelplexi embed URLs, use iframe
         console.log('🎬 PlayerContent URL:', videoUrl);
-        setStreamUrl(normalizeVideoUrl(videoUrl));
+        
+        // Check if it's a Reelplexi embed URL
+        if (videoUrl.includes('embed.reelplexi.com')) {
+          setStreamUrl(videoUrl); // Use embed URL directly for iframe
+        } else {
+          setStreamUrl(normalizeVideoUrl(videoUrl)); // Proxy for other URLs
+        }
         setTitle(contentTitle);
         setLoading(false);
 
@@ -357,8 +363,12 @@ export default function PlayerContent() {
       const newIndex = allEpisodes.findIndex(ep => ep.id === episode.id);
       setCurrentEpisodeIndex(newIndex);
 
-      // Update stream URL and title - normalizeVideoUrl will handle proxying
-      setStreamUrl(normalizeVideoUrl(videoUrl));
+      // Update stream URL and title - check if Reelplexi embed URL
+      if (videoUrl.includes('embed.reelplexi.com')) {
+        setStreamUrl(videoUrl); // Use embed URL directly for iframe
+      } else {
+        setStreamUrl(normalizeVideoUrl(videoUrl)); // Proxy for other URLs
+      }
       setTitle(`${contentData?.title || 'Series'} - ${episode.seasonName} - ${episode.title}`);
       setSwitchingEpisode(false);
 

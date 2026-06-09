@@ -41,6 +41,30 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   }, [onEnded]);
 
+  // Check if it's a Reelplexi embed URL
+  const isReelplexiEmbed = src.includes('embed.reelplexi.com');
+
+  if (isReelplexiEmbed) {
+    // Use iframe for Reelplexi embeds
+    return (
+      <div className="w-full h-full bg-black relative">
+        <iframe
+          src={src}
+          className="w-full h-full"
+          frameBorder="0"
+          allowFullScreen
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          onLoad={() => onLoad?.()}
+          onError={(e) => {
+            console.error('Iframe load error:', e);
+            onError?.(e);
+          }}
+        />
+      </div>
+    );
+  }
+
+  // Use ArtPlayer for other video URLs
   return (
     <ArtPlayer
       key={`artplayer-${src}`}
