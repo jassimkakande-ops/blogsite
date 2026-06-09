@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Redirecting...</title>
+    <script>
+        // Extract tokens from URL hash and redirect to our app
+        const hash = window.location.hash.substring(1);
+        const params = new URLSearchParams(hash);
+        const accessToken = params.get('access_token');
+        
+        // Use the current origin dynamically (works for localhost and production)
+        const origin = window.location.origin;
+        
+        if (accessToken) {
+            // Redirect to our auth callback to process the OAuth response
+            window.location.href = origin + '/auth/callback' + window.location.hash;
+        } else {
+            // No token, redirect to sign in
+            window.location.href = origin + '/signin?error=no_token';
+        }
+    </script>
+</head>
+<body>
+    <div style="display: flex; justify-content: center; align-items: center; height: 100vh; background: black; color: white; font-family: Arial, sans-serif;">
+        <div style="text-align: center;">
+            <div style="border: 2px solid #f97316; border-top: 2px solid transparent; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 20px;"></div>
+            <p>Redirecting...</p>
+        </div>
+    </div>
+    <style>
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</body>
+</html>
