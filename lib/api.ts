@@ -257,8 +257,8 @@ export async function getKilaxExclusiveContent(limit = 12) {
 // Category API - Enhanced with video URLs from Reelpexi
 export async function getMoviesByCategory(category: string, limit = 20) {
   try {
-    const movies = await ReelplexiService.getMoviesByGenre(category.toLowerCase(), 1, limit)
-    return movies.map(movie => ({
+    const movies = await ReelplexiService.getMoviesByGenre(category.toLowerCase())
+    return movies.slice(0, limit).map(movie => ({
       ...movie,
       created_at: movie.release_date || new Date().toISOString(),
       published: true,
@@ -273,8 +273,8 @@ export async function getMoviesByCategory(category: string, limit = 20) {
 
 export async function getSeriesByCategory(category: string, limit = 20) {
   try {
-    const series = await ReelplexiService.getSeriesByGenre(category.toLowerCase(), 1, limit)
-    return series.map(show => ({
+    const series = await ReelplexiService.getSeriesByGenre(category.toLowerCase())
+    return series.slice(0, limit).map(show => ({
       ...show,
       created_at: show.first_air_date || new Date().toISOString(),
       published: true,

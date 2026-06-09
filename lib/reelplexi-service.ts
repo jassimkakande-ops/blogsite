@@ -195,7 +195,7 @@ class ReelplexiService {
       per_page: perPage.toString(),
     })
     const data = Array.isArray(response.data) ? response.data : []
-    return data.map((item) => this.normalizeMovie(item))
+    return data.map((item: any) => this.normalizeMovie(item))
   }
 
   static async getMovieById(id: string): Promise<ReelplexiMovie | null> {
@@ -214,7 +214,7 @@ class ReelplexiService {
       per_page: perPage.toString(),
     })
     const data = Array.isArray(response.data) ? response.data : []
-    return data.map((item) => this.normalizeSeries(item))
+    return data.map((item: any) => this.normalizeSeries(item))
   }
 
   static async getSeriesById(id: string): Promise<ReelplexiSeries | null> {
@@ -231,7 +231,7 @@ class ReelplexiService {
     try {
       const response = await this.getJson(`/v1/series/${seriesId}/seasons/${season}/episodes`)
       const data = Array.isArray(response.data) ? response.data : []
-      return data.map((episode) => this.normalizeEpisode(seriesId, season, episode))
+      return data.map((episode: any) => this.normalizeEpisode(seriesId, season, episode))
     } catch {
       return []
     }
@@ -291,7 +291,7 @@ class ReelplexiService {
     try {
       const response = await this.getJson(`/v1/genres/${genre}/movies`)
       const data = Array.isArray(response.data) ? response.data : []
-      return data.map((item) => this.normalizeMovie(item))
+      return data.map((item: any) => this.normalizeMovie(item))
     } catch {
       return []
     }
@@ -301,7 +301,7 @@ class ReelplexiService {
     try {
       const response = await this.getJson(`/v1/genres/${genre}/series`)
       const data = Array.isArray(response.data) ? response.data : []
-      return data.map((item) => this.normalizeSeries(item))
+      return data.map((item: any) => this.normalizeSeries(item))
     } catch {
       return []
     }
@@ -314,7 +314,7 @@ class ReelplexiService {
         per_page: perPage.toString(),
       })
       const data = Array.isArray(response.data) ? response.data : []
-      return data.map((item) => {
+      return data.map((item: any) => {
         if (item.type === 'series' || item.first_air_date) {
           return this.normalizeSeries(item)
         }
@@ -332,7 +332,7 @@ class ReelplexiService {
         per_page: perPage.toString(),
       })
       const data = Array.isArray(response.data) ? response.data : []
-      return data.map((item) => this.normalizeMovie(item))
+      return data.map((item: any) => this.normalizeMovie(item))
     } catch {
       return []
     }
@@ -345,7 +345,7 @@ class ReelplexiService {
         per_page: perPage.toString(),
       })
       const data = Array.isArray(response.data) ? response.data : []
-      return data.map((item) => this.normalizeSeries(item))
+      return data.map((item: any) => this.normalizeSeries(item))
     } catch {
       return []
     }
@@ -358,7 +358,7 @@ class ReelplexiService {
         per_page: perPage.toString(),
       })
       const data = Array.isArray(response.data) ? response.data : []
-      return data.map((item) => this.normalizeMovie(item))
+      return data.map((item: any) => this.normalizeMovie(item))
     } catch {
       return []
     }
@@ -371,7 +371,7 @@ class ReelplexiService {
         per_page: perPage.toString(),
       })
       const data = Array.isArray(response.data) ? response.data : []
-      return data.map((item) => this.normalizeMovie(item))
+      return data.map((item: any) => this.normalizeMovie(item))
     } catch {
       return []
     }
@@ -384,7 +384,7 @@ class ReelplexiService {
         per_page: perPage.toString(),
       })
       const data = Array.isArray(response.data) ? response.data : []
-      return data.map((item) => this.normalizeSeries(item))
+      return data.map((item: any) => this.normalizeSeries(item))
     } catch {
       return []
     }
@@ -397,7 +397,7 @@ class ReelplexiService {
         per_page: perPage.toString(),
       })
       const data = Array.isArray(response.data) ? response.data : []
-      return data.map((item) => this.normalizeSeries(item))
+      return data.map((item: any) => this.normalizeSeries(item))
     } catch {
       return []
     }
@@ -410,7 +410,7 @@ class ReelplexiService {
         per_page: perPage.toString(),
       })
       const data = Array.isArray(response.data) ? response.data : []
-      return data.map((item) => this.normalizeMovie(item))
+      return data.map((item: any) => this.normalizeMovie(item))
     } catch {
       return []
     }
@@ -423,7 +423,7 @@ class ReelplexiService {
         per_page: perPage.toString(),
       })
       const data = Array.isArray(response.data) ? response.data : []
-      return data.map((item) => this.normalizeSeries(item))
+      return data.map((item: any) => this.normalizeSeries(item))
     } catch {
       return []
     }

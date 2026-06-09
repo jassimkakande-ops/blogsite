@@ -110,7 +110,7 @@ export default function SeriesDetailsPage() {
         genres={genres.length > 0 ? genres : ["Drama"]}
         coverImage={series.cover_image_url || series.backdrop_path || series.thumbnail_url || `https://via.placeholder.com/1920x1080/1f2937/f97316?text=${encodeURIComponent(series.title)}`}
         onWatch={() => handleWatch()}
-        onDownload={undefined}
+        onDownload={() => {}}
         primaryColor="#f97316"
       />
 
