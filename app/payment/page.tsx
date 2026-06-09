@@ -3,10 +3,23 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
-import { YoPaymentsService } from '@/lib/yopayments';
 import { getSubscriptionPlans } from '@/lib/subscriptions';
 import { SubscriptionPlan } from '@/lib/supabase';
 import Link from 'next/link';
+
+// Simple client-side MNO detection for MakyPay
+const detectMNO = (phone: string) => {
+  let cleaned = phone.replace(/\D/g, '');
+  if (!cleaned.startsWith('256')) {
+    cleaned = '256' + (cleaned.startsWith('0') ? cleaned.substring(1) : cleaned);
+  }
+  if (cleaned.length === 12) {
+    const prefix = cleaned.substring(3, 5);
+    if (['77', '78', '76', '39'].includes(prefix)) return 'MTN Mobile Money';
+    if (['70', '74', '75'].includes(prefix)) return 'Airtel Money';
+  }
+  return 'Unknown Network';
+};
 
 function PaymentPageContent() {
   const { user, loading: authLoading } = useAuth();
@@ -57,16 +70,7 @@ function PaymentPageContent() {
   // Detect mobile money provider
   useEffect(() => {
     if (phoneNumber.length >= 10) {
-      try {
-        const mno = YoPaymentsService.getAccountProviderCode(phoneNumber);
-        const mnoNames: Record<string, string> = {
-          'MTN_MOMO_UGA': 'MTN Mobile Money',
-          'AIRTEL_OAPI_UGA': 'Airtel Money',
-        };
-        setDetectedMNO(mnoNames[mno] || 'Unknown Network');
-      } catch {
-        setDetectedMNO('Invalid number');
-      }
+      setDetectedMNO(detectMNO(phoneNumber));
     } else {
       setDetectedMNO('');
     }
@@ -82,16 +86,7 @@ function PaymentPageContent() {
 
     // Detect MNO for modal
     if (cleanedValue.length >= 10) {
-      try {
-        const mno = YoPaymentsService.getAccountProviderCode(cleanedValue);
-        const mnoNames: Record<string, string> = {
-          'MTN_MOMO_UGA': 'MTN Mobile Money',
-          'AIRTEL_OAPI_UGA': 'Airtel Money',
-        };
-        setModalDetectedMNO(mnoNames[mno] || 'Unknown Network');
-      } catch {
-        setModalDetectedMNO('Invalid number');
-      }
+      setModalDetectedMNO(detectMNO(cleanedValue));
     } else {
       setModalDetectedMNO('');
     }
@@ -132,17 +127,12 @@ function PaymentPageContent() {
     try {
       const amount = selectedPlan.amount || 10000;
 
-      // Get session access token
-      const { data: sessionData } = await (await import('@/lib/supabase')).supabase.auth.getSession();
-      const accessToken = sessionData?.session?.access_token;
-
-      // Initiate payment
-      const response = await fetch('/api/yopayments/initiate', {
+      // Initiate payment via MakyPay
+      const response = await fetch('/api/makypay/initiate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: user.id,
-          accessToken,
           phoneNumber,
           amount,
           description: `Subscription: ${selectedPlan.name}`,
@@ -152,35 +142,45 @@ function PaymentPageContent() {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || 'Payment initiation failed');
 
-      const result = data.transaction;
-      setTransactionRef(result.transactionReference || result.internalReference);
+      const result = data;
+      setTransactionRef(result.uuid);
 
       // Show initial status message
       setPaymentStatus('processing');
       setErrorMessage('');
 
-      // Poll payment status with better user feedback
-      const pollResponse = await fetch('/api/yopayments/status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          transactionReference: result.transactionReference || result.internalReference,
-        }),
-      });
+      // Poll payment status with a loop
+      let finalResult = null;
+      let attempts = 0;
+      const maxAttempts = 30; // 30 * 3s = 90 seconds timeout
+      
+      while (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        
+        const pollResponse = await fetch(`/api/makypay/status?transactionId=${result.uuid}`);
+        const pollData = await pollResponse.json();
+        
+        if (!pollResponse.ok) throw new Error(pollData.error || 'Failed to check payment status');
 
-      const pollData = await pollResponse.json();
-      if (!pollResponse.ok) throw new Error(pollData.error || 'Failed to check payment status');
+        if (pollData.status === 'completed' || pollData.status === 'failed' || pollData.status === 'cancelled') {
+          finalResult = pollData;
+          break;
+        }
+        
+        attempts++;
+      }
 
-      const finalResult = pollData.transaction;
+      if (!finalResult) {
+        throw new Error('Payment timed out or is taking too long. If you paid successfully, your account will be updated automatically.');
+      }
 
-      if (finalResult.isCompleted) {
-        const completeResponse = await fetch('/api/yopayments/complete', {
+      if (finalResult.status === 'completed') {
+        const completeResponse = await fetch('/api/makypay/complete', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             userId: user.id,
-            accessToken,
-            transactionReference: finalResult.transactionReference || finalResult.internalReference,
+            transactionId: finalResult.uuid,
             subscriptionPlan: selectedPlan.name.toLowerCase(),
             subscriptionDuration: selectedPlan.duration_in_days || 30,
           }),
@@ -188,7 +188,7 @@ function PaymentPageContent() {
 
         if (!completeResponse.ok) {
           const completeData = await completeResponse.json();
-          throw new Error(completeData.error || 'Failed to complete subscription');
+          throw new Error(completeData.error || 'Failed to complete subscription processing');
         }
 
         // Force refresh of user's subscription status immediately after payment
@@ -201,7 +201,7 @@ function PaymentPageContent() {
         setPaymentStatus('success');
       } else {
         setPaymentStatus('failed');
-        setErrorMessage(finalResult.response.errorMessage || 'Payment failed');
+        setErrorMessage(`Payment ${finalResult.status}. Please try again.`);
       }
     } catch (error) {
       setPaymentStatus('failed');
