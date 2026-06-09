@@ -1,27 +1,26 @@
 // Client-side API wrapper for Reelpexi endpoints
 // Use these functions in client components ("use client")
 
-export async function getMoviesClient(limit = 20) {
+export async function getMoviesClient(page = 1, limit = 50) {
   try {
-    const response = await fetch(`/api/reelplexi/movies?limit=${limit}`)
+    const response = await fetch(`/api/reelplexi/movies?page=${page}&limit=${limit}`)
     const data = await response.json()
-    return data.success ? data.data : []
+    return data.success ? { data: data.data, hasMore: data.pagination?.hasMore ?? false } : { data: [], hasMore: false }
   } catch (error) {
     console.error('Error fetching movies:', error)
-    return []
+    return { data: [], hasMore: false }
   }
 }
 
-export async function getSeriesClient(limit = 20) {
+export async function getSeriesClient(page = 1, limit = 50) {
   try {
-    const response = await fetch(`/api/reelplexi/series?limit=${limit}`)
-    if (!response.ok) return []
+    const response = await fetch(`/api/reelplexi/series?page=${page}&limit=${limit}`)
+    if (!response.ok) return { data: [], hasMore: false }
     const data = await response.json()
-    // API now returns array directly for list, or object with data for single
-    return Array.isArray(data) ? data : (data.success ? data.data : [])
+    return data.success ? { data: data.data, hasMore: data.pagination?.hasMore ?? false } : { data: [], hasMore: false }
   } catch (error) {
     console.error('Error fetching series:', error)
-    return []
+    return { data: [], hasMore: false }
   }
 }
 

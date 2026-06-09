@@ -3,7 +3,7 @@ import { Search, Filter, ChevronDown } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { getMoviesClient, searchMoviesClient, getVJsClient, getMoviesByVJClient } from "@/lib/api-client";
 
 type Movie = {
@@ -23,13 +23,15 @@ type VJ = {
 
 export default function MoviesPage() {
   const [movies, setMovies] = useState<Movie[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedVJ, setSelectedVJ] = useState<string>("");
   const [selectedVJName, setSelectedVJName] = useState<string>("");
   const [availableVJs, setAvailableVJs] = useState<VJ[]>([]);
   const [showVJDropdown, setShowVJDropdown] = useState(false);
-  const [totalMovies, setTotalMovies] = useState(0);
+  const observerTarget = useRef<HTMLDivElement>(null);
 
   const fetchAvailableVJs = useCallback(async () => {
     try {
@@ -40,25 +42,28 @@ export default function MoviesPage() {
     }
   }, []);
 
-  const fetchMovies = useCallback(async () => {
+  const loadMoreMovies = useCallback(async () => {
+    if (loading || !hasMore || searchQuery || selectedVJ) return;
+    
     setLoading(true);
     try {
-      const moviesData = await getMoviesClient(100);
-      setMovies(moviesData);
-      setTotalMovies(moviesData.length);
+      const { data: moviesData, hasMore: more } = await getMoviesClient(page, 50);
+      setMovies(prev => [...prev, ...moviesData]);
+      setHasMore(more);
+      setPage(prev => prev + 1);
     } catch (error) {
       console.error('Error fetching movies:', error);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loading, hasMore, page, searchQuery, selectedVJ]);
 
   const handleVJFilter = useCallback(async (vjId: string, vjName: string) => {
     setLoading(true);
     try {
       const filteredMovies = await getMoviesByVJClient(vjId, vjName);
       setMovies(filteredMovies);
-      setTotalMovies(filteredMovies.length);
+      setHasMore(false);
     } catch (error) {
       console.error('Error filtering movies by VJ:', error);
     } finally {
@@ -72,21 +77,22 @@ export default function MoviesPage() {
       try {
         const searchResults = await searchMoviesClient(query);
         setMovies(searchResults);
-        setTotalMovies(searchResults.length);
+        setHasMore(false);
       } catch (error) {
         console.error('Error searching movies:', error);
       } finally {
         setLoading(false);
       }
     } else {
-      fetchMovies();
+      setMovies([]);
+      setPage(1);
+      setHasMore(true);
     }
-  }, [fetchMovies]);
+  }, []);
 
   useEffect(() => {
-    fetchMovies();
     fetchAvailableVJs();
-  }, [fetchMovies, fetchAvailableVJs]);
+  }, [fetchAvailableVJs]);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -95,25 +101,53 @@ export default function MoviesPage() {
         setSelectedVJName("");
         performSearch(searchQuery);
       } else if (!selectedVJ) {
-        fetchMovies();
+        setMovies([]);
+        setPage(1);
+        setHasMore(true);
       }
     }, 400);
     return () => clearTimeout(handler);
-  }, [searchQuery, selectedVJ, performSearch, fetchMovies]);
+  }, [searchQuery, selectedVJ, performSearch]);
 
   useEffect(() => {
     if (selectedVJ && selectedVJName) {
       handleVJFilter(selectedVJ, selectedVJName);
     } else if (!searchQuery) {
-      fetchMovies();
+      setMovies([]);
+      setPage(1);
+      setHasMore(true);
     }
-  }, [selectedVJ, selectedVJName, searchQuery, handleVJFilter, fetchMovies]);
+  }, [selectedVJ, selectedVJName, searchQuery, handleVJFilter]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loading) {
+          loadMoreMovies();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    const currentTarget = observerTarget.current;
+    if (currentTarget) {
+      observer.observe(currentTarget);
+    }
+
+    return () => {
+      if (currentTarget) {
+        observer.unobserve(currentTarget);
+      }
+    };
+  }, [loadMoreMovies, hasMore, loading]);
 
   const clearFilters = () => {
     setSelectedVJ("");
     setSelectedVJName("");
     setSearchQuery("");
-    fetchMovies();
+    setMovies([]);
+    setPage(1);
+    setHasMore(true);
   };
 
   const isFiltering = searchQuery.trim().length > 0 || selectedVJ;
@@ -123,7 +157,7 @@ export default function MoviesPage() {
       <div className="container mx-auto px-4 sm:px-6">
         <h1 className="text-3xl md:text-4xl font-bold mb-8 flex items-center">
           Movies
-          <span className="text-sm text-gray-400 ml-2">({totalMovies} total)</span>
+          <span className="text-sm text-gray-400 ml-2">({movies.length}{!isFiltering && hasMore ? '+' : ''} total)</span>
         </h1>
 
         <div className="mb-8 flex flex-col md:flex-row gap-4">
@@ -202,13 +236,7 @@ export default function MoviesPage() {
           )}
         </div>
 
-        {loading && (
-          <div className="flex justify-center py-12">
-            <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
-          </div>
-        )}
-
-        {!loading && (
+        {!loading && movies.length > 0 && (
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-x-2 gap-y-4">
             {movies.map((movie) => (
               <div key={movie.id} className="group">
@@ -219,6 +247,7 @@ export default function MoviesPage() {
                       src={movie.thumbnail_url || movie.cover_image_url || `https://via.placeholder.com/240x360/1f2937/f97316?text=${encodeURIComponent(movie.title)}`}
                       alt={movie.title}
                       fill
+                      unoptimized
                       className="object-cover transition-opacity duration-300"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
@@ -256,6 +285,15 @@ export default function MoviesPage() {
           </div>
         )}
 
+        {/* Infinite scroll trigger */}
+        {hasMore && !isFiltering && (
+          <div ref={observerTarget} className="flex justify-center py-8">
+            {loading && (
+              <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+            )}
+          </div>
+        )}
+
         {!loading && (searchQuery || selectedVJ) && movies.length === 0 && (
           <div className="text-center py-12">
             <Search className="w-16 h-16 text-gray-600 mx-auto mb-4" />
@@ -263,14 +301,6 @@ export default function MoviesPage() {
             <p className="text-gray-500">
               Try adjusting your search terms or filters
             </p>
-          </div>
-        )}
-
-        {isFiltering && (
-          <div className="text-center mt-8 text-gray-400">
-            Found {movies.length} movie{movies.length !== 1 ? 's' : ''}
-            {searchQuery && ` matching "${searchQuery}"`}
-            {selectedVJ && ` by ${availableVJs.find(vj => vj.id === selectedVJ)?.name}`}
           </div>
         )}
       </div>

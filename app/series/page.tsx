@@ -3,7 +3,7 @@ import { Search, Filter, ChevronDown } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { getSeriesClient, searchSeriesClient, getVJsClient, getSeriesByVJClient } from "@/lib/api-client";
 
 type Series = {
@@ -24,13 +24,15 @@ type VJ = {
 
 export default function SeriesPage() {
   const [series, setSeries] = useState<Series[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedVJ, setSelectedVJ] = useState<string>("");
   const [selectedVJName, setSelectedVJName] = useState<string>("");
   const [availableVJs, setAvailableVJs] = useState<VJ[]>([]);
   const [showVJDropdown, setShowVJDropdown] = useState(false);
-  const [totalSeries, setTotalSeries] = useState(0);
+  const observerTarget = useRef<HTMLDivElement>(null);
 
   const fetchAvailableVJs = useCallback(async () => {
     try {
@@ -41,25 +43,28 @@ export default function SeriesPage() {
     }
   }, []);
 
-  const fetchSeries = useCallback(async () => {
+  const loadMoreSeries = useCallback(async () => {
+    if (loading || !hasMore || searchQuery || selectedVJ) return;
+    
     setLoading(true);
     try {
-      const seriesData = await getSeriesClient(100);
-      setSeries(seriesData);
-      setTotalSeries(seriesData.length);
+      const { data: seriesData, hasMore: more } = await getSeriesClient(page, 50);
+      setSeries(prev => [...prev, ...seriesData]);
+      setHasMore(more);
+      setPage(prev => prev + 1);
     } catch (error) {
       console.error('Error fetching series:', error);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [loading, hasMore, page, searchQuery, selectedVJ]);
 
   const handleVJFilter = useCallback(async (vjId: string, vjName: string) => {
     setLoading(true);
     try {
       const filteredSeries = await getSeriesByVJClient(vjId, vjName);
       setSeries(filteredSeries);
-      setTotalSeries(filteredSeries.length);
+      setHasMore(false);
     } catch (error) {
       console.error('Error filtering series by VJ:', error);
     } finally {
@@ -73,21 +78,22 @@ export default function SeriesPage() {
       try {
         const searchResults = await searchSeriesClient(query);
         setSeries(searchResults);
-        setTotalSeries(searchResults.length);
+        setHasMore(false);
       } catch (error) {
         console.error('Error searching series:', error);
       } finally {
         setLoading(false);
       }
     } else {
-      fetchSeries();
+      setSeries([]);
+      setPage(1);
+      setHasMore(true);
     }
-  }, [fetchSeries]);
+  }, []);
 
   useEffect(() => {
-    fetchSeries();
     fetchAvailableVJs();
-  }, [fetchSeries, fetchAvailableVJs]);
+  }, [fetchAvailableVJs]);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -96,25 +102,53 @@ export default function SeriesPage() {
         setSelectedVJName("");
         performSearch(searchQuery);
       } else if (!selectedVJ) {
-        fetchSeries();
+        setSeries([]);
+        setPage(1);
+        setHasMore(true);
       }
     }, 400);
     return () => clearTimeout(handler);
-  }, [searchQuery, selectedVJ, performSearch, fetchSeries]);
+  }, [searchQuery, selectedVJ, performSearch]);
 
   useEffect(() => {
     if (selectedVJ && selectedVJName) {
       handleVJFilter(selectedVJ, selectedVJName);
     } else if (!searchQuery) {
-      fetchSeries();
+      setSeries([]);
+      setPage(1);
+      setHasMore(true);
     }
-  }, [selectedVJ, selectedVJName, searchQuery, handleVJFilter, fetchSeries]);
+  }, [selectedVJ, selectedVJName, searchQuery, handleVJFilter]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loading) {
+          loadMoreSeries();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    const currentTarget = observerTarget.current;
+    if (currentTarget) {
+      observer.observe(currentTarget);
+    }
+
+    return () => {
+      if (currentTarget) {
+        observer.unobserve(currentTarget);
+      }
+    };
+  }, [loadMoreSeries, hasMore, loading]);
 
   const clearFilters = () => {
     setSelectedVJ("");
     setSelectedVJName("");
     setSearchQuery("");
-    fetchSeries();
+    setSeries([]);
+    setPage(1);
+    setHasMore(true);
   };
 
   const isFiltering = searchQuery.trim().length > 0 || selectedVJ;
@@ -124,7 +158,7 @@ export default function SeriesPage() {
       <div className="container mx-auto px-4 sm:px-6">
         <h1 className="text-3xl md:text-4xl font-bold mb-8 flex items-center">
           Series
-          <span className="text-sm text-gray-400 ml-2">({totalSeries} total)</span>
+          <span className="text-sm text-gray-400 ml-2">({series.length}{!isFiltering && hasMore ? '+' : ''} total)</span>
         </h1>
 
         <div className="mb-8 flex flex-col md:flex-row gap-4">
@@ -193,23 +227,7 @@ export default function SeriesPage() {
           </div>
         </div>
 
-        <div className="mb-6">
-          {(searchQuery || selectedVJ) && (
-            <p className="text-gray-400 mb-4">
-              {loading ? 'Searching...' : `${series.length} results`}
-              {searchQuery && ` for "${searchQuery}"`}
-              {selectedVJ && ` by ${availableVJs.find(vj => vj.id === selectedVJ)?.name}`}
-            </p>
-          )}
-        </div>
-
-        {loading && (
-          <div className="flex justify-center py-12">
-            <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
-          </div>
-        )}
-
-        {!loading && (
+        {!loading && series.length > 0 && (
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-x-2 gap-y-4">
             {series.map((show) => (
               <div key={show.id} className="group">
@@ -220,6 +238,7 @@ export default function SeriesPage() {
                       src={show.thumbnail_url || show.cover_image_url || `https://via.placeholder.com/240x360/1f2937/f97316?text=${encodeURIComponent(show.title)}`}
                       alt={show.title}
                       fill
+                      unoptimized
                       className="object-cover transition-opacity duration-300"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
@@ -257,6 +276,15 @@ export default function SeriesPage() {
           </div>
         )}
 
+        {/* Infinite scroll trigger */}
+        {hasMore && !isFiltering && (
+          <div ref={observerTarget} className="flex justify-center py-8">
+            {loading && (
+              <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+            )}
+          </div>
+        )}
+
         {!loading && (searchQuery || selectedVJ) && series.length === 0 && (
           <div className="text-center py-12">
             <Search className="w-16 h-16 text-gray-600 mx-auto mb-4" />
@@ -264,14 +292,6 @@ export default function SeriesPage() {
             <p className="text-gray-500">
               Try adjusting your search terms or filters
             </p>
-          </div>
-        )}
-
-        {isFiltering && (
-          <div className="text-center mt-8 text-gray-400">
-            Found {series.length} series
-            {searchQuery && ` matching "${searchQuery}"`}
-            {selectedVJ && ` by ${availableVJs.find(vj => vj.id === selectedVJ)?.name}`}
           </div>
         )}
       </div>
