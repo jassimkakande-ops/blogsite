@@ -181,6 +181,18 @@ export function ArtPlayer({ url, poster, title, className, onEnded, episodes = [
         // Enable faster seeking by setting buffer ahead time
         art.video.preload = 'metadata'
         
+        // Catch AbortError when play is interrupted by pause (e.g. on unmount)
+        const originalPlay = art.video.play;
+        art.video.play = function() {
+          const promise = originalPlay.apply(this, arguments as any);
+          if (promise !== undefined) {
+            promise.catch((e: Error) => {
+              if (e.name !== 'AbortError') throw e;
+            });
+          }
+          return promise;
+        };
+        
         // Add event listeners for better seeking feedback
         art.video.addEventListener('seeking', () => {
           console.log('Video seeking...')

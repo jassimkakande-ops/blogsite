@@ -129,6 +129,7 @@ class ReelplexiService {
       genre_ids: genres.map((g: string) => g.toLowerCase()),
       vjs: vjName ? { name: vjName } : undefined,
       published: true,
+      premium: raw.premium !== false,
     }
   }
 
@@ -154,6 +155,7 @@ class ReelplexiService {
       genre_ids: genres.map((g: string) => g.toLowerCase()),
       vjs: vjName ? { name: vjName } : undefined,
       published: true,
+      premium: raw.premium !== false,
     }
   }
 

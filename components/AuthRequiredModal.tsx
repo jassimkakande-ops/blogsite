@@ -21,7 +21,7 @@ export default function AuthRequiredModal({
   isOpen,
   onClose,
   action,
-  requirePremium = false,
+  requirePremium = true,
   customMessage
 }: AuthRequiredModalProps) {
   const { user, loading, isPremium } = useAuth();
@@ -266,7 +266,7 @@ function PremiumRequiredModal({ action, onUpgrade, onClose, subscriptionStatus, 
 export function useAuthCheck() {
   const { user, loading, isPremium } = useAuth();
 
-  const checkAuth = (requirePremium = false) => {
+  const checkAuth = (requirePremium = true) => {
     if (loading) return { allowed: false, reason: 'loading' };
 
     if (!user) {

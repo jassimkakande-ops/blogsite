@@ -586,7 +586,7 @@ export default function PlayerContent() {
                     return (
                       <div
                         key={episode.id}
-                        className={`p-2 rounded cursor-pointer transition-colors ${isCurrentEpisode
+                        className={`group p-2 rounded cursor-pointer transition-colors ${isCurrentEpisode
                           ? 'bg-orange-500/20 border border-orange-500/30'
                           : canAccess
                             ? 'hover:bg-gray-800'
@@ -626,27 +626,51 @@ export default function PlayerContent() {
                           </div>
 
                           {/* Episode Info */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="text-white text-sm font-medium truncate">
-                                {episode.title}
-                              </span>
-                              {isPremiumEpisode && (
-                                <span className="text-xs bg-orange-500 text-white px-1 py-0.5 rounded flex-shrink-0">
-                                  Premium
+                          <div className="flex-1 min-w-0 flex items-center justify-between">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-white text-sm font-medium truncate">
+                                  {episode.title}
                                 </span>
-                              )}
-                              {isCurrentEpisode && (
-                                <Play className="w-3 h-3 text-orange-500 flex-shrink-0" />
-                              )}
-                            </div>
-                            <div className="text-xs text-gray-400">
-                              {episode.seasonName}
-                            </div>
-                            {!canAccess && (
-                              <div className="text-xs text-red-400">
-                                {isPremiumEpisode ? 'Premium Required' : 'Login Required'}
+                                {isPremiumEpisode && (
+                                  <span className="text-xs bg-orange-500 text-white px-1 py-0.5 rounded flex-shrink-0">
+                                    Premium
+                                  </span>
+                                )}
+                                {isCurrentEpisode && (
+                                  <Play className="w-3 h-3 text-orange-500 flex-shrink-0" />
+                                )}
                               </div>
+                              <div className="text-xs text-gray-400">
+                                {episode.seasonName}
+                              </div>
+                              {!canAccess && (
+                                <div className="text-xs text-red-400">
+                                  {isPremiumEpisode ? 'Premium Required' : 'Login Required'}
+                                </div>
+                              )}
+                            </div>
+                            
+                            {/* Download Button (shows on hover) */}
+                            {canAccess && (
+                              <button
+                                className="opacity-0 group-hover:opacity-100 p-2 text-gray-400 hover:text-white transition-opacity shrink-0"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const epTitle = episode.title || `Episode_${episode.episode_number}`;
+                                  const safeTitle = `${contentData?.title || 'Series'}_${epTitle}`.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+                                  const downloadUrl = `/api/download?id=${seriesId || contentId}&type=episode&season=${episode.seasonOrder}&episode=${episode.episode_number}&filename=${encodeURIComponent(safeTitle + '.mp4')}`;
+                                  const a = document.createElement('a');
+                                  a.href = downloadUrl;
+                                  a.download = safeTitle + '.mp4';
+                                  document.body.appendChild(a);
+                                  a.click();
+                                  document.body.removeChild(a);
+                                }}
+                                title="Download"
+                              >
+                                <Download className="w-5 h-5" />
+                              </button>
                             )}
                           </div>
                         </div>
