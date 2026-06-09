@@ -160,15 +160,15 @@ export default function HomePage() {
         setLoading(false); // Hide skeleton as soon as hero content is ready
 
         // Then load the rest of the content progressively
-        const [latestMovies, latestSeries, kilaxExclusiveData, genreRows] = await Promise.all([
-          getMoviesClient(12),
-          getSeriesClient(12),
+        const [latestMoviesResult, latestSeriesResult, kilaxExclusiveData, genreRows] = await Promise.all([
+          getMoviesClient(1, 12),
+          getSeriesClient(1, 12),
           getKilaxExclusiveContentClient(8),
           getGenreRowsClient(12),
         ]);
 
-        setLatestMovies(latestMovies);
-        setLatestSeries(latestSeries);
+        setLatestMovies(latestMoviesResult.data);
+        setLatestSeries(latestSeriesResult.data);
         setKilaxExclusive(kilaxExclusiveData);
         setGenreRows(genreRows);
       } catch (error) {

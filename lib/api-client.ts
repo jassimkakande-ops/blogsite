@@ -38,14 +38,14 @@ export async function getVJContentClient(limit = 12) {
 export async function getKilaxExclusiveContentClient(limit = 12) {
   // All Reelpexi content is considered exclusive
   try {
-    const [movies, series] = await Promise.all([
-      getMoviesClient(Math.ceil(limit / 2)),
-      getSeriesClient(Math.ceil(limit / 2))
+    const [moviesResult, seriesResult] = await Promise.all([
+      getMoviesClient(1, Math.ceil(limit / 2)),
+      getSeriesClient(1, Math.ceil(limit / 2))
     ])
     
     const combined = [
-      ...movies.map((item: any) => ({ ...item, type: 'movie' as const })),
-      ...series.map((item: any) => ({ ...item, type: 'series' as const })),
+      ...moviesResult.data.map((item: any) => ({ ...item, type: 'movie' as const })),
+      ...seriesResult.data.map((item: any) => ({ ...item, type: 'series' as const })),
     ]
     
     return combined.sort((a, b) =>

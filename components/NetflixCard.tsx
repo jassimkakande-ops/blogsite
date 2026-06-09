@@ -28,13 +28,15 @@ export const NetflixCard = ({ content, type, isNonTranslated = false }: NetflixC
     return `/${type === "movie" ? "movies" : "series"}/${content.id}`;
   };
 
-  // Get the best available image URL
-  const imageUrl = content.thumbnail_url ||
-    content.cover_image_url ||
-    (('poster_url' in content && content.poster_url) ? content.poster_url : undefined) ||
-    (('poster_path' in content && content.poster_path) ? content.poster_path : undefined) ||
-    (('backdrop_path' in content && content.backdrop_path) ? content.backdrop_path : undefined) ||
-    `https://via.placeholder.com/240x360/1f2937/f97316?text=${encodeURIComponent(content.title || '')}`;
+  // Get the best available image URL with type safety
+  const getImageUrl = (): string => {
+    return content.thumbnail_url ||
+      content.cover_image_url ||
+      (('poster_url' in content && content.poster_url) ? content.poster_url as string : '') ||
+      (('poster_path' in content && content.poster_path) ? content.poster_path as string : '') ||
+      (('backdrop_path' in content && content.backdrop_path) ? content.backdrop_path as string : '') ||
+      `https://via.placeholder.com/240x360/1f2937/f97316?text=${encodeURIComponent(content.title || '')}`;
+  };
 
   return (
     <div className="group">
@@ -42,7 +44,7 @@ export const NetflixCard = ({ content, type, isNonTranslated = false }: NetflixC
       <div className="cursor-pointer transition-transform duration-200 hover:scale-105">
         <div className="aspect-[2/3] relative rounded-lg overflow-hidden bg-gray-800 mb-2">
           <Image
-            src={imageUrl}
+            src={getImageUrl()}
             alt={content.title || `Poster for ${type}`}
             fill
             className="object-cover transition-opacity duration-300"
@@ -52,6 +54,7 @@ export const NetflixCard = ({ content, type, isNonTranslated = false }: NetflixC
               target.src = `https://via.placeholder.com/240x360/1f2937/f97316?text=${encodeURIComponent(content.title || '')}`;
             }}
           />
+        )
 
           {/* Content type badge - smaller */}
           <div className={`absolute top-1 left-1 px-1.5 py-0.5 rounded text-[10px] font-bold ${
