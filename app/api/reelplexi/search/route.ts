@@ -16,26 +16,16 @@ export async function GET(request: Request) {
     let results
     
     if (type === 'series') {
-      const allSeries = await ReelplexiService.getSeries(1, 100)
-      const filtered = allSeries.filter(item => {
-        const title = (item.title || '').toLowerCase()
-        const desc = (item.description || item.overview || '').toLowerCase()
-        return title.includes(lowerQuery) || desc.includes(lowerQuery)
-      })
-      results = filtered.map(item => ({
+      const seriesResults = await ReelplexiService.searchSeries(query, 1, 100)
+      results = seriesResults.map(item => ({
         ...item,
         created_at: item.first_air_date || new Date().toISOString(),
         published: true,
         premium: false,
       }))
     } else {
-      const allMovies = await ReelplexiService.getMovies(1, 100)
-      const filtered = allMovies.filter(item => {
-        const title = (item.title || '').toLowerCase()
-        const desc = (item.description || item.overview || '').toLowerCase()
-        return title.includes(lowerQuery) || desc.includes(lowerQuery)
-      })
-      results = filtered.map(item => ({
+      const movieResults = await ReelplexiService.searchMovies(query, 1, 100)
+      results = movieResults.map(item => ({
         ...item,
         created_at: item.release_date || new Date().toISOString(),
         published: true,

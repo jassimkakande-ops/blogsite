@@ -88,10 +88,9 @@ export default function MovieDetailsPage() {
       return;
     }
 
-    // Get streaming URL
-    const streamUrl = await getStreamUrlClient(movie.id, 'movie');
-    if (streamUrl) {
-      router.push(`/player?id=${movie.id}&type=movie&url=${encodeURIComponent(streamUrl)}`);
+    // Use embed URL directly to leverage Reelplexi endpoints without proxying
+    if (movie.embed_url) {
+      router.push(`/player?id=${movie.id}&type=movie&url=${encodeURIComponent(movie.embed_url)}`);
     } else {
       router.push(`/player?id=${movie.id}&type=movie`);
     }

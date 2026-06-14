@@ -161,12 +161,8 @@ export async function getGenres() {
 // Search API - Enhanced with video URLs from Reelpexi
 export async function searchMovies(query: string, limit = 20) {
   try {
-    const allMovies = await ReelplexiService.getMovies(1, 100)
-    const filtered = allMovies.filter(movie => 
-      movie.title.toLowerCase().includes(query.toLowerCase()) ||
-      movie.description?.toLowerCase().includes(query.toLowerCase())
-    )
-    return filtered.slice(0, limit).map(movie => ({
+    const movies = await ReelplexiService.searchMovies(query, 1, limit)
+    return movies.map(movie => ({
       ...movie,
       created_at: movie.release_date || new Date().toISOString(),
       published: true,
@@ -180,12 +176,8 @@ export async function searchMovies(query: string, limit = 20) {
 
 export async function searchSeries(query: string, limit = 20) {
   try {
-    const allSeries = await ReelplexiService.getSeries(1, 100)
-    const filtered = allSeries.filter(show => 
-      show.title.toLowerCase().includes(query.toLowerCase()) ||
-      show.description?.toLowerCase().includes(query.toLowerCase())
-    )
-    return filtered.slice(0, limit).map(show => ({
+    const series = await ReelplexiService.searchSeries(query, 1, limit)
+    return series.map(show => ({
       ...show,
       created_at: show.first_air_date || new Date().toISOString(),
       published: true,

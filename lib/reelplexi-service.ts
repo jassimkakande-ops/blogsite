@@ -159,6 +159,13 @@ class ReelplexiService {
     }
   }
 
+  private static normalizeMixedContent(raw: any): ReelplexiMovie | ReelplexiSeries {
+    if (raw.type === 'series' || raw.first_air_date || raw.seasons != null) {
+      return this.normalizeSeries(raw)
+    }
+    return this.normalizeMovie(raw)
+  }
+
   private static normalizeEpisode(seriesId: string, season: number, raw: any): ReelplexiEpisode {
     const episodeNumber = parseInt(raw.episode_number?.toString() || '0')
     const posterUrl = raw.poster_url || raw.thumbnail_url
@@ -355,12 +362,49 @@ class ReelplexiService {
         per_page: perPage.toString(),
       })
       const data = Array.isArray(response.data) ? response.data : []
-      return data.map((item: any) => {
-        if (item.type === 'series' || item.first_air_date) {
-          return this.normalizeSeries(item)
-        }
-        return this.normalizeMovie(item)
+      return data.map((item: any) => this.normalizeMixedContent(item))
+    } catch {
+      return []
+    }
+  }
+
+  static async searchAll(query: string, page = 1, perPage = 50): Promise<Array<ReelplexiMovie | ReelplexiSeries>> {
+    try {
+      const response = await this.getJson('/v1/search', {
+        q: query,
+        page: page.toString(),
+        per_page: perPage.toString(),
       })
+      const data = Array.isArray(response.data) ? response.data : []
+      return data.map((item: any) => this.normalizeMixedContent(item))
+    } catch {
+      return []
+    }
+  }
+
+  static async searchMovies(query: string, page = 1, perPage = 50): Promise<ReelplexiMovie[]> {
+    try {
+      const response = await this.getJson('/v1/movies/search', {
+        q: query,
+        page: page.toString(),
+        per_page: perPage.toString(),
+      })
+      const data = Array.isArray(response.data) ? response.data : []
+      return data.map((item: any) => this.normalizeMovie(item))
+    } catch {
+      return []
+    }
+  }
+
+  static async searchSeries(query: string, page = 1, perPage = 50): Promise<ReelplexiSeries[]> {
+    try {
+      const response = await this.getJson('/v1/series/search', {
+        q: query,
+        page: page.toString(),
+        per_page: perPage.toString(),
+      })
+      const data = Array.isArray(response.data) ? response.data : []
+      return data.map((item: any) => this.normalizeSeries(item))
     } catch {
       return []
     }

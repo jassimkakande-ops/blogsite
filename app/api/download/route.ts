@@ -36,26 +36,10 @@ export async function GET(request: Request) {
       return new Response('Stream URL is empty', { status: 404 })
     }
 
-    // Fetch the file from the remote URL
-    const proxyResponse = await fetch(targetUrl)
-    
-    if (!proxyResponse.ok) {
-      throw new Error(`Failed to fetch the file: ${proxyResponse.statusText}`)
-    }
-
-    const filename = filenameParam || 'download.mp4'
-
-    // Proxy the response stream with attachment headers
-    return new Response(proxyResponse.body, {
-      headers: {
-        'Content-Disposition': `attachment; filename="${filename}"`,
-        'Content-Type': proxyResponse.headers.get('Content-Type') || 'video/mp4',
-        // Copy content length if available so browser shows progress
-        ...(proxyResponse.headers.get('Content-Length') ? { 'Content-Length': proxyResponse.headers.get('Content-Length') as string } : {})
-      }
-    })
+    // Redirect directly to the Reelplexi proxy/stream URL to avoid our server acting as an extra proxy
+    return NextResponse.redirect(targetUrl)
   } catch (error) {
     console.error('Download error:', error)
-    return new Response('Failed to download file', { status: 500 })
+    return new Response('Failed to redirect to download', { status: 500 })
   }
 }

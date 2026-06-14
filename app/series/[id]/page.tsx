@@ -88,16 +88,16 @@ export default function SeriesDetailsPage() {
     }
 
     if (episodeNumber) {
-      const streamUrl = await getStreamUrlClient(series.id, 'episode', selectedSeason, episodeNumber);
-      if (streamUrl) {
-        router.push(`/player?id=${series.id}&type=series&season=${selectedSeason}&episode=${episodeNumber}&url=${encodeURIComponent(streamUrl)}`);
+      const episode = episodes.find(e => e.episode_number === episodeNumber);
+      if (episode?.embed_url) {
+        router.push(`/player?id=${series.id}&type=series&season=${selectedSeason}&episode=${episodeNumber}&url=${encodeURIComponent(episode.embed_url)}`);
       } else {
         router.push(`/player?id=${series.id}&type=series&season=${selectedSeason}&episode=${episodeNumber}`);
       }
     } else {
-      const streamUrl = await getStreamUrlClient(series.id, 'episode', selectedSeason, 1);
-      if (streamUrl) {
-        router.push(`/player?id=${series.id}&type=series&season=${selectedSeason}&episode=1&url=${encodeURIComponent(streamUrl)}`);
+      const episode = episodes.find(e => e.episode_number === 1) || episodes[0];
+      if (episode?.embed_url) {
+        router.push(`/player?id=${series.id}&type=series&season=${selectedSeason}&episode=${episode.episode_number}&url=${encodeURIComponent(episode.embed_url)}`);
       } else {
         router.push(`/player?id=${series.id}&type=series&season=${selectedSeason}&episode=1`);
       }
