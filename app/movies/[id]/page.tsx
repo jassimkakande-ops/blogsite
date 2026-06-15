@@ -88,9 +88,11 @@ export default function MovieDetailsPage() {
       return;
     }
 
-    // Use embed URL directly to leverage Reelplexi endpoints without proxying
-    if (movie.embed_url) {
-      router.push(`/player?id=${movie.id}&type=movie&url=${encodeURIComponent(movie.embed_url)}`);
+    // Prefer the direct stream proxy URL (plays in ArtPlayer, no iframe X-Frame-Options block).
+    // Fall back to embed_url which uses an iframe as a last resort.
+    const playUrl = movie.video_url || movie.embed_url;
+    if (playUrl) {
+      router.push(`/player?id=${movie.id}&type=movie&url=${encodeURIComponent(playUrl)}`);
     } else {
       router.push(`/player?id=${movie.id}&type=movie`);
     }
@@ -162,15 +164,20 @@ export default function MovieDetailsPage() {
             <h2 className="text-2xl font-bold mb-3 text-orange-400">Download Movie</h2>
             <Button
               className="w-full bg-orange-500 hover:bg-orange-600 mb-3"
-              onClick={() => {
-                const downloadUrl = `/api/download?id=${movie.id}&type=movie&filename=${encodeURIComponent(movie.title + '.mp4')}`;
-                const a = document.createElement('a');
-                a.href = downloadUrl;
-                a.download = movie.title + '.mp4';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
+              onClick={async () => {
                 setShowDownloadModal(false);
+                try {
+                  // Get the direct stream URL from Reelplexi — no content proxying
+                  const res = await fetch(`/api/download?id=${movie.id}&type=movie`);
+                  if (!res.ok) throw new Error('Could not resolve download URL');
+                  const { url } = await res.json();
+                  if (!url) throw new Error('No download URL returned');
+                  // Open the URL directly in a new tab — browser handles the download
+                  window.open(url, '_blank', 'noopener,noreferrer');
+                } catch (err) {
+                  console.error('Download failed:', err);
+                  alert('Download is not available for this movie right now. Please try again.');
+                }
               }}
             >
               Download Now

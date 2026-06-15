@@ -223,14 +223,18 @@ export default function PlayerContent() {
           throw new Error('No video URL available');
         }
 
-        // Use video URL directly - for Reelplexi embed URLs, use iframe
         console.log('🎬 PlayerContent URL:', videoUrl);
-        
-        // Check if it's a Reelplexi embed URL
+
+        // Route the URL to the correct player path:
+        // 1. embed.reelplexi.com → iframe (X-Frame-Options permitting)
+        // 2. Direct HTTPS URLs (Reelplexi proxy, CDN, etc.) → ArtPlayer directly, no double-proxy
+        // 3. Everything else (relative, non-http) → our /api/stream wrapper
         if (videoUrl.includes('embed.reelplexi.com')) {
-          setStreamUrl(videoUrl); // Use embed URL directly for iframe
+          setStreamUrl(videoUrl); // Iframe player
+        } else if (videoUrl.startsWith('https://') || videoUrl.startsWith('http://')) {
+          setStreamUrl(videoUrl); // Direct video URL → ArtPlayer, skip our proxy
         } else {
-          setStreamUrl(normalizeVideoUrl(videoUrl)); // Proxy for other URLs
+          setStreamUrl(normalizeVideoUrl(videoUrl)); // Wrap relative/unknown URLs in our proxy
         }
         setTitle(contentTitle);
         setLoading(false);
@@ -363,11 +367,13 @@ export default function PlayerContent() {
       const newIndex = allEpisodes.findIndex(ep => ep.id === episode.id);
       setCurrentEpisodeIndex(newIndex);
 
-      // Update stream URL and title - check if Reelplexi embed URL
+      // Update stream URL and title - same routing logic as main player
       if (videoUrl.includes('embed.reelplexi.com')) {
-        setStreamUrl(videoUrl); // Use embed URL directly for iframe
+        setStreamUrl(videoUrl); // Iframe player
+      } else if (videoUrl.startsWith('https://') || videoUrl.startsWith('http://')) {
+        setStreamUrl(videoUrl); // Direct video URL → ArtPlayer, no double-proxy
       } else {
-        setStreamUrl(normalizeVideoUrl(videoUrl)); // Proxy for other URLs
+        setStreamUrl(normalizeVideoUrl(videoUrl)); // Wrap relative/unknown URLs in our proxy
       }
       setTitle(`${contentData?.title || 'Series'} - ${episode.seasonName} - ${episode.title}`);
       setSwitchingEpisode(false);
@@ -655,17 +661,19 @@ export default function PlayerContent() {
                             {canAccess && (
                               <button
                                 className="opacity-0 group-hover:opacity-100 p-2 text-gray-400 hover:text-white transition-opacity shrink-0"
-                                onClick={(e) => {
+                                onClick={async (e) => {
                                   e.stopPropagation();
-                                  const epTitle = episode.title || `Episode_${episode.episode_number}`;
-                                  const safeTitle = `${contentData?.title || 'Series'}_${epTitle}`.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-                                  const downloadUrl = `/api/download?id=${seriesId || contentId}&type=episode&season=${episode.seasonOrder}&episode=${episode.episode_number}&filename=${encodeURIComponent(safeTitle + '.mp4')}`;
-                                  const a = document.createElement('a');
-                                  a.href = downloadUrl;
-                                  a.download = safeTitle + '.mp4';
-                                  document.body.appendChild(a);
-                                  a.click();
-                                  document.body.removeChild(a);
+                                  try {
+                                    const res = await fetch(
+                                      `/api/download?id=${seriesId || contentId}&type=episode&season=${episode.seasonOrder}&episode=${episode.episode_number}`
+                                    );
+                                    if (!res.ok) throw new Error('Could not resolve download URL');
+                                    const { url } = await res.json();
+                                    if (!url) throw new Error('No download URL returned');
+                                    window.open(url, '_blank', 'noopener,noreferrer');
+                                  } catch (err) {
+                                    console.error('Download failed:', err);
+                                  }
                                 }}
                                 title="Download"
                               >

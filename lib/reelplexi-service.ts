@@ -112,6 +112,15 @@ class ReelplexiService {
       video_url: raw.video_url
     })
 
+    // Build embed URL: always ensure the API key is appended, whether from the API or constructed
+    const buildEmbedUrl = (base: string | undefined, id: string | undefined): string | undefined => {
+      const baseUrl = base || (id ? `https://embed.reelplexi.com/movie/${id}` : undefined)
+      if (!baseUrl) return undefined
+      return baseUrl.includes('?')
+        ? `${baseUrl}&key=${ReelplexiConfig.apiKey}`
+        : `${baseUrl}?key=${ReelplexiConfig.apiKey}`
+    }
+
     return {
       ...raw,
       id: raw.id?.toString() || '',
@@ -123,7 +132,7 @@ class ReelplexiService {
       thumbnail_url: posterUrl,
       cover_image_url: backdropUrl,
       backdrop_path: backdropUrl,
-      embed_url: raw.embed_url || (raw.id ? `https://embed.reelplexi.com/movie/${raw.id}?key=${ReelplexiConfig.apiKey}` : undefined),
+      embed_url: buildEmbedUrl(raw.embed_url, raw.id?.toString()),
       video_url: raw.stream_url || raw.proxy_url,
       genres,
       genre_ids: genres.map((g: string) => g.toLowerCase()),
@@ -172,6 +181,14 @@ class ReelplexiService {
     const backdropUrl = raw.backdrop_url || posterUrl
     const syntheticId = `${seriesId}:season:${season}:episode:${episodeNumber}`
 
+    // Build episode embed URL: always ensure the API key is appended
+    const buildEpisodeEmbedUrl = (base: string | undefined, sid: string, s: number, ep: number): string | undefined => {
+      const baseUrl = base || `https://embed.reelplexi.com/tv/${sid}/${s}/${ep}`
+      return baseUrl.includes('?')
+        ? `${baseUrl}&key=${ReelplexiConfig.apiKey}`
+        : `${baseUrl}?key=${ReelplexiConfig.apiKey}`
+    }
+
     return {
       ...raw,
       id: syntheticId,
@@ -187,7 +204,7 @@ class ReelplexiService {
       cover_image_url: backdropUrl,
       backdrop_path: backdropUrl,
       video_url: raw.video_url || raw.stream_url || raw.proxy_url,
-      embed_url: raw.embed_url || (raw.series_id || seriesId ? `https://embed.reelplexi.com/tv/${raw.series_id || seriesId}/${season}/${episodeNumber}?key=${ReelplexiConfig.apiKey}` : undefined),
+      embed_url: buildEpisodeEmbedUrl(raw.embed_url, raw.series_id || seriesId, season, episodeNumber),
       published: true,
     }
   }

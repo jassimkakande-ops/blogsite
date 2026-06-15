@@ -89,15 +89,18 @@ export default function SeriesDetailsPage() {
 
     if (episodeNumber) {
       const episode = episodes.find(e => e.episode_number === episodeNumber);
-      if (episode?.embed_url) {
-        router.push(`/player?id=${series.id}&type=series&season=${selectedSeason}&episode=${episodeNumber}&url=${encodeURIComponent(episode.embed_url)}`);
+      // Prefer stream proxy URL over embed URL to avoid iframe X-Frame-Options blocking
+      const playUrl = episode?.video_url || episode?.embed_url;
+      if (playUrl) {
+        router.push(`/player?id=${series.id}&type=series&season=${selectedSeason}&episode=${episodeNumber}&url=${encodeURIComponent(playUrl)}`);
       } else {
         router.push(`/player?id=${series.id}&type=series&season=${selectedSeason}&episode=${episodeNumber}`);
       }
     } else {
       const episode = episodes.find(e => e.episode_number === 1) || episodes[0];
-      if (episode?.embed_url) {
-        router.push(`/player?id=${series.id}&type=series&season=${selectedSeason}&episode=${episode.episode_number}&url=${encodeURIComponent(episode.embed_url)}`);
+      const playUrl = episode?.video_url || episode?.embed_url;
+      if (playUrl) {
+        router.push(`/player?id=${series.id}&type=series&season=${selectedSeason}&episode=${episode.episode_number}&url=${encodeURIComponent(playUrl)}`);
       } else {
         router.push(`/player?id=${series.id}&type=series&season=${selectedSeason}&episode=1`);
       }
@@ -247,17 +250,22 @@ export default function SeriesDetailsPage() {
             </p>
             <Button
               className="w-full bg-orange-500 hover:bg-orange-600 mb-3"
-              onClick={() => {
-                const epTitle = selectedDownloadEpisode.title || `Episode_${selectedDownloadEpisode.episode_number}`;
-                const safeTitle = `${series.title}_${epTitle}`.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-                const downloadUrl = `/api/download?id=${series.id}&type=episode&season=${selectedSeason}&episode=${selectedDownloadEpisode.episode_number}&filename=${encodeURIComponent(safeTitle + '.mp4')}`;
-                const a = document.createElement('a');
-                a.href = downloadUrl;
-                a.download = safeTitle + '.mp4';
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
+              onClick={async () => {
                 setShowDownloadModal(false);
+                try {
+                  // Get the direct stream URL from Reelplexi — no content proxying
+                  const res = await fetch(
+                    `/api/download?id=${series.id}&type=episode&season=${selectedSeason}&episode=${selectedDownloadEpisode.episode_number}`
+                  );
+                  if (!res.ok) throw new Error('Could not resolve download URL');
+                  const { url } = await res.json();
+                  if (!url) throw new Error('No download URL returned');
+                  // Open the URL directly in a new tab — browser handles the download
+                  window.open(url, '_blank', 'noopener,noreferrer');
+                } catch (err) {
+                  console.error('Download failed:', err);
+                  alert('Download is not available for this episode right now. Please try again.');
+                }
               }}
             >
               Download Now

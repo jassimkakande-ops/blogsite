@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server'
 import ReelplexiService from '@/lib/reelplexi-service'
 
+/**
+ * Returns the Reelplexi stream URL as JSON so the client can open it directly.
+ * No server-side content proxying — zero data passes through this server.
+ */
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
@@ -8,10 +12,9 @@ export async function GET(request: Request) {
     const type = searchParams.get('type') || 'movie' // 'movie' or 'episode'
     const season = searchParams.get('season')
     const episode = searchParams.get('episode')
-    const filenameParam = searchParams.get('filename')
-    
+
     if (!id) {
-      return new Response('ID is required', { status: 400 })
+      return NextResponse.json({ error: 'ID is required' }, { status: 400 })
     }
 
     let streamData = null
@@ -27,19 +30,15 @@ export async function GET(request: Request) {
     }
 
     if (!streamData || (!streamData.stream_url && !streamData.proxy_url)) {
-      return new Response('Stream URL not available', { status: 404 })
+      return NextResponse.json({ error: 'Stream URL not available' }, { status: 404 })
     }
 
-    const targetUrl = streamData.proxy_url || streamData.stream_url
-    
-    if (!targetUrl) {
-      return new Response('Stream URL is empty', { status: 404 })
-    }
+    const url = streamData.proxy_url || streamData.stream_url
 
-    // Redirect directly to the Reelplexi proxy/stream URL to avoid our server acting as an extra proxy
-    return NextResponse.redirect(targetUrl)
+    // Return the URL only — the client opens it directly, nothing is proxied here
+    return NextResponse.json({ url, expires_at: streamData.expires_at })
   } catch (error) {
-    console.error('Download error:', error)
-    return new Response('Failed to redirect to download', { status: 500 })
+    console.error('Download URL lookup error:', error)
+    return NextResponse.json({ error: 'Failed to get download URL' }, { status: 500 })
   }
 }
