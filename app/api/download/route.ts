@@ -54,6 +54,9 @@ export async function GET(req: NextRequest) {
     }
 
     const resolvedUrl = streamData.proxy_url || streamData.stream_url;
+    if (!resolvedUrl) {
+      return NextResponse.json({ error: 'Stream URL not available' }, { status: 404 });
+    }
     return proxyDownload(resolvedUrl, filename);
   } catch (error) {
     console.error('[Download Proxy] Reelplexi lookup error:', error);
