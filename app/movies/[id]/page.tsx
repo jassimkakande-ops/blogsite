@@ -172,10 +172,12 @@ export default function MovieDetailsPage() {
                   if (!res.ok) throw new Error('Could not resolve download URL');
                   const { url } = await res.json();
                   if (!url) throw new Error('No download URL returned');
-                  // Force download through server proxy to prevent Chrome from playing it
-                  const { forceDownloadFile } = await import('@/lib/utils');
+                  
                   const filename = `${movie.title ? movie.title.replace(/[^a-z0-9]/gi, '_').toLowerCase() : 'movie'}.mp4`;
-                  forceDownloadFile(url, filename);
+                  
+                  // Use our same-origin proxy to force download instead of inline playback
+                  const proxyUrl = `/api/download-proxy?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`;
+                  window.open(proxyUrl, '_blank');
                 } catch (err) {
                   console.error('Download failed:', err);
                   alert('Download is not available for this movie right now. Please try again.');

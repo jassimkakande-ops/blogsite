@@ -87,32 +87,7 @@ export async function fetchAuthenticatedVideoUrl(videoPath: string): Promise<str
   return `/api/stream?url=${encodeURIComponent(normalizedUrl)}`
 }
 
-/**
- * Forces a file download by routing through /api/stream with a filename param.
- * This sets Content-Disposition: attachment on the response, preventing Chrome
- * from opening the video in its built-in player instead of downloading.
- *
- * The `download` attribute on <a> tags is ignored for cross-origin URLs,
- * so we proxy through our own server to make it same-origin.
- */
-export function forceDownloadFile(url: string, filename: string) {
-  // Ensure the URL is absolute
-  let fullUrl = url;
-  if (!url.startsWith('http://') && !url.startsWith('https://')) {
-    fullUrl = `https://${url}`;
-  }
 
-  // Route through /api/stream with filename to trigger Content-Disposition: attachment
-  const proxyUrl = `/api/stream?url=${encodeURIComponent(fullUrl)}&filename=${encodeURIComponent(filename)}`;
-
-  const link = document.createElement('a');
-  link.href = proxyUrl;
-  link.setAttribute('download', filename);
-  link.style.display = 'none';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-}
 
 export function redirectToLogin(currentPath?: string) {
   if (currentPath) {
