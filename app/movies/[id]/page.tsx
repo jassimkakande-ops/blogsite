@@ -172,8 +172,14 @@ export default function MovieDetailsPage() {
                   if (!res.ok) throw new Error('Could not resolve download URL');
                   const { url } = await res.json();
                   if (!url) throw new Error('No download URL returned');
-                  // Open the URL directly in a new tab — browser handles the download
-                  window.open(url, '_blank', 'noopener,noreferrer');
+                  // Force download using a hidden anchor element
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.target = '_blank';
+                  link.setAttribute('download', `${movie.title ? movie.title.replace(/[^a-z0-9]/gi, '_').toLowerCase() : 'movie'}.mp4`);
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
                 } catch (err) {
                   console.error('Download failed:', err);
                   alert('Download is not available for this movie right now. Please try again.');

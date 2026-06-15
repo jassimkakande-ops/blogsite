@@ -670,7 +670,14 @@ export default function PlayerContent() {
                                     if (!res.ok) throw new Error('Could not resolve download URL');
                                     const { url } = await res.json();
                                     if (!url) throw new Error('No download URL returned');
-                                    window.open(url, '_blank', 'noopener,noreferrer');
+                                    // Force download using a hidden anchor element
+                                    const link = document.createElement('a');
+                                    link.href = url;
+                                    link.target = '_blank';
+                                    link.setAttribute('download', `${episode.title ? episode.title.replace(/[^a-z0-9]/gi, '_').toLowerCase() : 'episode'}.mp4`);
+                                    document.body.appendChild(link);
+                                    link.click();
+                                    document.body.removeChild(link);
                                   } catch (err) {
                                     console.error('Download failed:', err);
                                   }
