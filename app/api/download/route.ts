@@ -17,26 +17,24 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'ID is required' }, { status: 400 })
     }
 
-    let streamData = null
+    let downloadUrl = null
 
     if (type === 'movie') {
-      streamData = await ReelplexiService.getMovieStream(id)
+      downloadUrl = await ReelplexiService.getMovieDownload(id)
     } else if (type === 'episode' && season && episode) {
-      streamData = await ReelplexiService.getEpisodeStream(
+      downloadUrl = await ReelplexiService.getEpisodeDownload(
         id,
         parseInt(season),
         parseInt(episode)
       )
     }
 
-    if (!streamData || (!streamData.stream_url && !streamData.proxy_url)) {
-      return NextResponse.json({ error: 'Stream URL not available' }, { status: 404 })
+    if (!downloadUrl) {
+      return NextResponse.json({ error: 'Download URL not available' }, { status: 404 })
     }
 
-    const url = streamData.proxy_url || streamData.stream_url
-
-    // Return the URL only — the client opens it directly, nothing is proxied here
-    return NextResponse.json({ url, expires_at: streamData.expires_at })
+    // Return the URL only — the client opens it directly via the proxy route
+    return NextResponse.json({ url: downloadUrl })
   } catch (error) {
     console.error('Download URL lookup error:', error)
     return NextResponse.json({ error: 'Failed to get download URL' }, { status: 500 })
