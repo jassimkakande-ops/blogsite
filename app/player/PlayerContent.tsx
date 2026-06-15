@@ -11,7 +11,7 @@ import { useAuth } from '@/components/AuthProvider';
 import AuthRequiredModal, { useAuthCheck } from '@/components/AuthRequiredModal';
 import { getProfile, Profile } from '@/lib/profiles';
 import { Episode, EpisodeWithSeason } from '@/lib/supabase';
-import { normalizeVideoUrl } from '@/lib/utils';
+import { normalizeVideoUrl, forceDownloadFile } from '@/lib/utils';
 
 export default function PlayerContent() {
   const searchParams = useSearchParams();
@@ -670,14 +670,9 @@ export default function PlayerContent() {
                                     if (!res.ok) throw new Error('Could not resolve download URL');
                                     const { url } = await res.json();
                                     if (!url) throw new Error('No download URL returned');
-                                    // Force download using a hidden anchor element
-                                    const link = document.createElement('a');
-                                    link.href = url;
-                                    link.target = '_blank';
-                                    link.setAttribute('download', `${episode.title ? episode.title.replace(/[^a-z0-9]/gi, '_').toLowerCase() : 'episode'}.mp4`);
-                                    document.body.appendChild(link);
-                                    link.click();
-                                    document.body.removeChild(link);
+                                    // Force download through server proxy to prevent Chrome from playing it
+                                    const filename = `${episode.title ? episode.title.replace(/[^a-z0-9]/gi, '_').toLowerCase() : 'episode'}.mp4`;
+                                    forceDownloadFile(url, filename);
                                   } catch (err) {
                                     console.error('Download failed:', err);
                                   }

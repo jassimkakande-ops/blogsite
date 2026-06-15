@@ -260,14 +260,10 @@ export default function SeriesDetailsPage() {
                   if (!res.ok) throw new Error('Could not resolve download URL');
                   const { url } = await res.json();
                   if (!url) throw new Error('No download URL returned');
-                  // Force download using a hidden anchor element
-                  const link = document.createElement('a');
-                  link.href = url;
-                  link.target = '_blank';
-                  link.setAttribute('download', `${series.title ? series.title.replace(/[^a-z0-9]/gi, '_').toLowerCase() : 'series'}_s${selectedSeason}e${selectedDownloadEpisode.episode_number}.mp4`);
-                  document.body.appendChild(link);
-                  link.click();
-                  document.body.removeChild(link);
+                  // Force download through server proxy to prevent Chrome from playing it
+                  const { forceDownloadFile } = await import('@/lib/utils');
+                  const filename = `${series.title ? series.title.replace(/[^a-z0-9]/gi, '_').toLowerCase() : 'series'}_s${selectedSeason}e${selectedDownloadEpisode.episode_number}.mp4`;
+                  forceDownloadFile(url, filename);
                 } catch (err) {
                   console.error('Download failed:', err);
                   alert('Download is not available for this episode right now. Please try again.');
