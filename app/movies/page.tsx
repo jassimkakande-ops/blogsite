@@ -236,7 +236,7 @@ export default function MoviesPage() {
           )}
         </div>
 
-        {!loading && movies.length > 0 && (
+        {movies.length > 0 && (
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-x-2 gap-y-4">
             {movies.map((movie) => (
               <div key={movie.id} className="group">

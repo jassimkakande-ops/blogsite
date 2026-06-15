@@ -227,7 +227,7 @@ export default function SeriesPage() {
           </div>
         </div>
 
-        {!loading && series.length > 0 && (
+        {series.length > 0 && (
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-x-2 gap-y-4">
             {series.map((show) => (
               <div key={show.id} className="group">
