@@ -167,16 +167,10 @@ export default function MovieDetailsPage() {
               onClick={async () => {
                 setShowDownloadModal(false);
                 try {
-                  // Get the direct stream URL from Reelplexi — no content proxying
-                  const res = await fetch(`/api/download?id=${movie.id}&type=movie`);
-                  if (!res.ok) throw new Error('Could not resolve download URL');
-                  const { url } = await res.json();
-                  if (!url) throw new Error('No download URL returned');
-                  
-                  const filename = `${movie.title ? movie.title.replace(/[^a-z0-9]/gi, '_').toLowerCase() : 'movie'}.mp4`;
-                  
+                  const cleanTitle = movie.title ? movie.title.replace(/[^a-zA-Z0-9\s\-_.]/g, '').trim() : 'movie';
+                  const filename = `${cleanTitle}.mp4`;
                   // Use our same-origin proxy to force download instead of inline playback
-                  const proxyUrl = `/api/download-proxy?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`;
+                  const proxyUrl = `/api/download?id=${movie.id}&type=movie&filename=${encodeURIComponent(filename)}`;
                   window.open(proxyUrl, '_blank');
                 } catch (err) {
                   console.error('Download failed:', err);

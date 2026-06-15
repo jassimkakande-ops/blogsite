@@ -1,42 +1,100 @@
-import { NextResponse } from 'next/server'
-import ReelplexiService from '@/lib/reelplexi-service'
+import { NextRequest, NextResponse } from 'next/server';
+import ReelplexiService from '@/lib/reelplexi-service';
 
 /**
- * Returns the Reelplexi stream URL as JSON so the client can open it directly.
- * No server-side content proxying — zero data passes through this server.
+ * Proxy download route that streams the file through our server.
+ * This forces the browser to download rather than play the video,
+ * because the `a.download` attribute only works on same-origin URLs.
+ *
+ * Two modes:
+ *
+ * 1. Direct proxy (streamit pattern):
+ *    ?url=<signed-url>&filename=<name.mp4>
+ *    Streams the upstream file through with Content-Disposition: attachment
+ *    and Content-Type: application/octet-stream so the browser downloads it.
+ *
+ * 2. Reelplexi lookup (legacy):
+ *    ?id=<id>&type=movie|episode&season=<n>&episode=<n>
+ *    Resolves the stream URL from Reelplexi, then proxies it through.
  */
-export async function GET(request: Request) {
+export async function GET(req: NextRequest) {
+  const url = req.nextUrl.searchParams.get('url');
+  const filename = req.nextUrl.searchParams.get('filename') || 'download.mp4';
+
+  // Mode 1: Direct proxy — url is already known
+  if (url) {
+    return proxyDownload(url, filename);
+  }
+
+  // Mode 2: Resolve URL from Reelplexi first
+  const id = req.nextUrl.searchParams.get('id');
+  const type = req.nextUrl.searchParams.get('type') || 'movie';
+  const season = req.nextUrl.searchParams.get('season');
+  const episode = req.nextUrl.searchParams.get('episode');
+
+  if (!id) {
+    return NextResponse.json({ error: 'Either url or id is required' }, { status: 400 });
+  }
+
   try {
-    const { searchParams } = new URL(request.url)
-    const id = searchParams.get('id')
-    const type = searchParams.get('type') || 'movie' // 'movie' or 'episode'
-    const season = searchParams.get('season')
-    const episode = searchParams.get('episode')
-
-    if (!id) {
-      return NextResponse.json({ error: 'ID is required' }, { status: 400 })
-    }
-
-    let downloadUrl = null
+    let streamData = null;
 
     if (type === 'movie') {
-      downloadUrl = await ReelplexiService.getMovieDownload(id)
+      streamData = await ReelplexiService.getMovieStream(id);
     } else if (type === 'episode' && season && episode) {
-      downloadUrl = await ReelplexiService.getEpisodeDownload(
+      streamData = await ReelplexiService.getEpisodeStream(
         id,
         parseInt(season),
         parseInt(episode)
-      )
+      );
     }
 
-    if (!downloadUrl) {
-      return NextResponse.json({ error: 'Download URL not available' }, { status: 404 })
+    if (!streamData || (!streamData.stream_url && !streamData.proxy_url)) {
+      return NextResponse.json({ error: 'Stream URL not available' }, { status: 404 });
     }
 
-    // Return the URL only — the client opens it directly via the proxy route
-    return NextResponse.json({ url: downloadUrl })
+    const resolvedUrl = streamData.proxy_url || streamData.stream_url;
+    return proxyDownload(resolvedUrl, filename);
   } catch (error) {
-    console.error('Download URL lookup error:', error)
-    return NextResponse.json({ error: 'Failed to get download URL' }, { status: 500 })
+    console.error('[Download Proxy] Reelplexi lookup error:', error);
+    return NextResponse.json({ error: 'Failed to resolve download URL' }, { status: 500 });
+  }
+}
+
+/**
+ * Proxy the upstream URL through our server as a forced download.
+ * Content-Type is set to application/octet-stream so the browser
+ * treats it as a binary file rather than trying to play it inline.
+ */
+async function proxyDownload(url: string, filename: string) {
+  try {
+    const upstream = await fetch(url);
+
+    if (!upstream.ok) {
+      return NextResponse.json(
+        { error: `Upstream returned ${upstream.status}` },
+        { status: upstream.status }
+      );
+    }
+
+    const contentLength = upstream.headers.get('content-length');
+
+    const headers = new Headers({
+      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Content-Type': 'application/octet-stream',
+    });
+
+    if (contentLength) {
+      headers.set('Content-Length', contentLength);
+    }
+
+    // Stream the body through — avoids loading the entire file into memory
+    return new NextResponse(upstream.body, {
+      status: 200,
+      headers,
+    });
+  } catch (error: any) {
+    console.error('[Download Proxy] Error:', error.message);
+    return NextResponse.json({ error: 'Download failed' }, { status: 500 });
   }
 }

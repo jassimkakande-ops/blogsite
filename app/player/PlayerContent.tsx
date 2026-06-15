@@ -661,24 +661,13 @@ export default function PlayerContent() {
                             {canAccess && (
                               <button
                                 className="opacity-0 group-hover:opacity-100 p-2 text-gray-400 hover:text-white transition-opacity shrink-0"
-                                onClick={async (e) => {
+                                onClick={(e) => {
                                   e.stopPropagation();
-                                  try {
-                                    const res = await fetch(
-                                      `/api/download?id=${seriesId || contentId}&type=episode&season=${episode.seasonOrder}&episode=${episode.episode_number}`
-                                    );
-                                    if (!res.ok) throw new Error('Could not resolve download URL');
-                                    const { url } = await res.json();
-                                    if (!url) throw new Error('No download URL returned');
-                                    
-                                    const filename = `${episode.title ? episode.title.replace(/[^a-z0-9]/gi, '_').toLowerCase() : 'episode'}.mp4`;
-                                    
-                                    // Use our same-origin proxy to force download instead of inline playback
-                                    const proxyUrl = `/api/download-proxy?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`;
-                                    window.open(proxyUrl, '_blank');
-                                  } catch (err) {
-                                    console.error('Download failed:', err);
-                                  }
+                                  const cleanTitle = episode.title ? episode.title.replace(/[^a-zA-Z0-9\s\-_.]/g, '').trim() : 'episode';
+                                  const filename = `${cleanTitle}.mp4`;
+                                  // Use our same-origin proxy to force download instead of inline playback
+                                  const proxyUrl = `/api/download?id=${seriesId || contentId}&type=episode&season=${episode.seasonOrder}&episode=${episode.episode_number}&filename=${encodeURIComponent(filename)}`;
+                                  window.open(proxyUrl, '_blank');
                                 }}
                                 title="Download"
                               >

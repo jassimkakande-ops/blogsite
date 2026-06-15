@@ -328,28 +328,6 @@ class ReelplexiService {
     }
   }
 
-  static async getMovieDownload(id: string): Promise<string | null> {
-    try {
-      const response = await this.getJson(`/v1/download/movie/${id}`)
-      console.log(`Raw movie download API response for ${id}:`, JSON.stringify(response))
-      return response.download_url || (response.data && response.data.download_url) || null
-    } catch (error) {
-      console.error('Error getting movie download URL:', error)
-      return null
-    }
-  }
-
-  static async getEpisodeDownload(seriesId: string, season: number, episode: number): Promise<string | null> {
-    try {
-      const response = await this.getJson(`/v1/download/tv/${seriesId}/${season}/${episode}`)
-      console.log(`Raw episode download API response for ${seriesId} S${season} E${episode}:`, JSON.stringify(response))
-      return response.download_url || (response.data && response.data.download_url) || null
-    } catch (error) {
-      console.error('Error getting episode download URL:', error)
-      return null
-    }
-  }
-
   static async getGenres(): Promise<Array<{ id: string; name: string }>> {
     try {
       const response = await this.getJson('/v1/genres')
