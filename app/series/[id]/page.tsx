@@ -252,6 +252,7 @@ export default function SeriesDetailsPage() {
               </div>
             ))}
           </div>
+          )}
         </div>
       )}
       
