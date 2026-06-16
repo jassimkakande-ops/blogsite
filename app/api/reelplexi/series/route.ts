@@ -68,7 +68,6 @@ export async function GET(request: Request) {
       ...series,
       created_at: series.first_air_date || new Date().toISOString(),
       published: true,
-      seasons: [], // Episodes loaded separately
     }
 
     return NextResponse.json({

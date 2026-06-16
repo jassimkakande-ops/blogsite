@@ -114,7 +114,7 @@ class ReelplexiService {
 
     // Build embed URL: always ensure the API key is appended, whether from the API or constructed
     const buildEmbedUrl = (base: string | undefined, id: string | undefined): string | undefined => {
-      const baseUrl = base || (id ? `https://embed.reelplexi.com/movie/${id}` : undefined)
+      const baseUrl = base || (id ? `${ReelplexiConfig.baseUrl}/v1/embed/movie/${id}` : undefined)
       if (!baseUrl) return undefined
       return baseUrl.includes('?')
         ? `${baseUrl}&key=${ReelplexiConfig.apiKey}`
@@ -183,7 +183,7 @@ class ReelplexiService {
 
     // Build episode embed URL: always ensure the API key is appended
     const buildEpisodeEmbedUrl = (base: string | undefined, sid: string, s: number, ep: number): string | undefined => {
-      const baseUrl = base || `https://embed.reelplexi.com/tv/${sid}/${s}/${ep}`
+      const baseUrl = base || `${ReelplexiConfig.baseUrl}/v1/embed/tv/${sid}/${s}/${ep}`
       return baseUrl.includes('?')
         ? `${baseUrl}&key=${ReelplexiConfig.apiKey}`
         : `${baseUrl}?key=${ReelplexiConfig.apiKey}`

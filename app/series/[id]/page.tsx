@@ -146,10 +146,41 @@ export default function SeriesDetailsPage() {
         primaryColor="#f97316"
       />
 
-      {episodes.length > 0 && (
+      {(episodes.length > 0 || series.no_of_seasons > 1 || series.number_of_seasons > 1 || (series.seasons && series.seasons.length > 1) || selectedSeason > 1) && (
         <div className="container mx-auto px-6 mt-12">
-          <h2 className="text-2xl font-bold mb-6">Episodes - Season {selectedSeason}</h2>
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+            <h2 className="text-2xl font-bold">Episodes - Season {selectedSeason}</h2>
+            {(() => {
+              const seasonNumbers = series.seasons && series.seasons.length > 0
+                ? Array.from(new Set(series.seasons.map((s: any) => s.season_number).filter(Boolean))) as number[]
+                : Array.from({ length: series.no_of_seasons || series.number_of_seasons || 1 }, (_, i) => i + 1);
+              
+              if (seasonNumbers.length <= 1) return null;
+              
+              return (
+                <div className="flex flex-wrap gap-2">
+                  {seasonNumbers.sort((a, b) => a - b).map((num) => (
+                    <Button
+                      key={num}
+                      variant={selectedSeason === num ? "default" : "outline"}
+                      className={selectedSeason === num ? "bg-orange-500 hover:bg-orange-600 text-white border-orange-500" : "border-gray-600 text-gray-300 hover:text-white hover:bg-gray-800"}
+                      onClick={() => setSelectedSeason(num)}
+                      size="sm"
+                    >
+                      Season {num}
+                    </Button>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
+          
+          {episodes.length === 0 ? (
+            <div className="text-gray-400 py-8 text-center bg-gray-900 rounded-lg border border-gray-800">
+              No episodes found for Season {selectedSeason}.
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             {episodes.map((episode) => (
               <div 
                 key={episode.id} 
