@@ -88,19 +88,11 @@ export default function SeriesDetailsPage() {
     }
 
     if (episodeNumber) {
-      const episode = episodes.find(e => e.episode_number === episodeNumber);
-      // Prefer stream proxy URL over embed URL to avoid iframe X-Frame-Options blocking
-      const playUrl = episode?.video_url || episode?.embed_url;
-      if (playUrl) {
-        router.push(`/player?id=${series.id}&type=series&season=${selectedSeason}&episode=${episodeNumber}&url=${encodeURIComponent(playUrl)}`);
-      } else {
-        router.push(`/player?id=${series.id}&type=series&season=${selectedSeason}&episode=${episodeNumber}`);
-      }
+      router.push(`/player?id=${series.id}&type=series&season=${selectedSeason}&episode=${episodeNumber}`);
     } else {
       const episode = episodes.find(e => e.episode_number === 1) || episodes[0];
-      const playUrl = episode?.video_url || episode?.embed_url;
-      if (playUrl) {
-        router.push(`/player?id=${series.id}&type=series&season=${selectedSeason}&episode=${episode.episode_number}&url=${encodeURIComponent(playUrl)}`);
+      if (episode) {
+        router.push(`/player?id=${series.id}&type=series&season=${selectedSeason}&episode=${episode.episode_number}`);
       } else {
         router.push(`/player?id=${series.id}&type=series&season=${selectedSeason}&episode=1`);
       }

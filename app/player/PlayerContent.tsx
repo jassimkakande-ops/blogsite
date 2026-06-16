@@ -131,8 +131,19 @@ export default function PlayerContent() {
 
         } else if (contentType === 'series') {
           // Check if we have season/episode params (new format from Reelplexi)
-          if (seasonParam && episodeParam && urlParam) {
-            videoUrl = decodeURIComponent(urlParam);
+          if (seasonParam && episodeParam) {
+            // Fetch the stream URL securely from our server-side API (never expose it via URL params)
+            try {
+              const streamRes = await fetch(`/api/reelplexi/stream?id=${encodeURIComponent(contentId)}&type=episode&season=${seasonParam}&episode=${episodeParam}`);
+              if (streamRes.ok) {
+                const streamData = await streamRes.json();
+                if (streamData.success && streamData.stream_url) {
+                  videoUrl = streamData.stream_url;
+                }
+              }
+            } catch (e) {
+              console.warn('Could not fetch secure episode stream:', e);
+            }
             contentTitle = `Episode ${episodeParam}`;
             contentInfo = { id: contentId, premium: false };
             
