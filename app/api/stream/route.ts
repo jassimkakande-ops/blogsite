@@ -1,7 +1,89 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { protectVideoEndpoint } from '@/lib/video-protection';
 
+/**
+ * Validates that a URL belongs to a trusted video host.
+ * Configure allowed hosts via the ALLOWED_VIDEO_HOSTS env var (comma-separated).
+ * This prevents SSRF attacks where an attacker could use this proxy to reach
+ * internal networks or arbitrary external services.
+ */
+function isAllowedVideoUrl(urlString: string): boolean {
+  // Configurable allowlist via env var (comma-separated domains)
+  const envHosts = process.env.ALLOWED_VIDEO_HOSTS || '';
+  const allowedHosts = envHosts
+    .split(',')
+    .map(h => h.trim().toLowerCase())
+    .filter(Boolean);
+
+  console.log('isAllowedVideoUrl: Checking URL:', urlString);
+  console.log('isAllowedVideoUrl: ALLOWED_VIDEO_HOSTS:', envHosts || '(not set)');
+
+  // If no allowlist is configured, only block obviously dangerous targets
+  // (private IPs, metadata endpoints, localhost). In production you should
+  // set ALLOWED_VIDEO_HOSTS for a strict allowlist.
+  try {
+    const url = new URL(urlString);
+    const hostname = url.hostname.toLowerCase();
+    
+    console.log('isAllowedVideoUrl: Parsed hostname:', hostname);
+    console.log('isAllowedVideoUrl: Protocol:', url.protocol);
+
+    // Always block private/internal addresses
+    const blockedPatterns = [
+      /^localhost$/i,
+      /^127\./,
+      /^10\./,
+      /^172\.(1[6-9]|2\d|3[01])\./,
+      /^192\.168\./,
+      /^169\.254\./,        // AWS metadata
+      /^0\./,
+      /^\[::1\]$/,          // IPv6 localhost
+      /^metadata\./i,
+      /^internal\./i,
+    ];
+
+    const matchedBlockedPattern = blockedPatterns.find(p => p.test(hostname));
+    if (matchedBlockedPattern) {
+      console.log('isAllowedVideoUrl: BLOCKED by pattern:', matchedBlockedPattern);
+      return false;
+    }
+
+    // Block non-http(s) schemes
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      console.log('isAllowedVideoUrl: BLOCKED - invalid protocol:', url.protocol);
+      return false;
+    }
+
+    // If an allowlist is configured, enforce it strictly
+    if (allowedHosts.length > 0) {
+      const allowed = allowedHosts.some(
+        host => hostname === host || hostname.endsWith(`.${host}`)
+      );
+      console.log('isAllowedVideoUrl: Allowlist check result:', allowed);
+      return allowed;
+    }
+
+    // No allowlist configured — allow (with blocked patterns filtered above)
+    console.log('isAllowedVideoUrl: ALLOWED (no allowlist configured)');
+    return true;
+  } catch (error) {
+    console.error('isAllowedVideoUrl: ERROR parsing URL:', error);
+    return false;
+  }
+}
 export async function GET(request: NextRequest) {
   try {
+    // Apply protection middleware
+    const protection = await protectVideoEndpoint(request);
+    
+    if (!protection.allowed) {
+      console.error('Stream API: Protection denied:', protection.error);
+      return NextResponse.json(
+        { error: protection.error || 'Access denied' },
+        { status: 403 }
+      );
+    }
+
     const { searchParams } = new URL(request.url);
     const videoUrl = searchParams.get('url');
     const filename = searchParams.get('filename');
@@ -11,17 +93,26 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Video URL is required' }, { status: 400 });
     }
 
+    // SECURITY: Validate the URL against the allowlist to prevent SSRF
+    if (!isAllowedVideoUrl(videoUrl)) {
+      console.error('Stream API: Blocked request to non-allowed host');
+      return NextResponse.json({ error: 'Invalid video source' }, { status: 403 });
+    }
+
     console.log('Stream API: Processing URL:', videoUrl);
 
     // Use consistent environment variables with components
     const username = process.env.NEXT_PUBLIC_CADDY_USERNAME || process.env.CADDY_USERNAME || "mat";
     const password = process.env.NEXT_PUBLIC_CADDY_PASSWORD || process.env.CADDY_PASSWORD || "MatTh3pAR";
-    const encodedCredentials = btoa(`${username}:${password}`);
 
     const range = request.headers.get('range');
-    const upstreamHeaders: Record<string, string> = {
-      'Authorization': `Basic ${encodedCredentials}`
-    };
+    const upstreamHeaders: Record<string, string> = {};
+
+    // SECURITY: Only attach auth credentials when URL is on an allowed host
+    if (username && password && isAllowedVideoUrl(videoUrl)) {
+      const encodedCredentials = btoa(`${username}:${password}`);
+      upstreamHeaders['Authorization'] = `Basic ${encodedCredentials}`;
+    }
 
     if (range) {
       upstreamHeaders['Range'] = range;
