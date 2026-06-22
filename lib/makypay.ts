@@ -191,6 +191,18 @@ export class MakyPayService {
     const now = new Date();
     const expiryDate = new Date(now.getTime() + subscriptionDuration * 24 * 60 * 60 * 1000);
 
+    // Check if subscription already exists for this transaction
+    const { data: existingSub } = await supabase
+      .from('subscriptions')
+      .select('id')
+      .eq('transaction_id', transactionId)
+      .maybeSingle();
+
+    if (existingSub) {
+      console.log(`Subscription for transaction ${transactionId} already processed.`);
+      return;
+    }
+
     const { error: subscriptionError } = await supabase.from('subscriptions').insert({
       user_id: userId,
       plan: subscriptionPlan,
@@ -293,19 +305,40 @@ export class MakyPayService {
     if (event_type === 'collection.completed') {
       const { data: txData } = await supabase
         .from('makypay_transactions')
-        .select('user_id, description')
+        .select('user_id, description, amount')
         .eq('uuid', transaction.uuid)
         .single();
 
-      if (txData?.description?.includes('Subscription')) {
-        const planMatch = txData.description.match(/(free|pro|enterprise)/i);
+      if (txData?.description) {
+        const planMatch = txData.description.match(/(basic|standard|free|pro|enterprise)/i);
         if (planMatch) {
-          await this.completeSubscriptionPayment({
-            userId: txData.user_id,
-            transactionId: transaction.uuid,
-            subscriptionPlan: planMatch[1].toLowerCase(),
-            subscriptionDuration: 30,
-          });
+          const planName = planMatch[1].toLowerCase();
+          
+          // Check if already processed to avoid double subscription
+          const { data: existingSub } = await supabase
+            .from('subscriptions')
+            .select('id')
+            .eq('transaction_id', transaction.uuid)
+            .maybeSingle();
+            
+          if (!existingSub) {
+            // Get actual plan duration
+            const { data: planData } = await supabase
+              .from('plans')
+              .select('duration_in_days')
+              .ilike('name', `%${planName}%`)
+              .eq('amount', txData.amount)
+              .maybeSingle();
+              
+            const duration = planData?.duration_in_days || 30;
+
+            await this.completeSubscriptionPayment({
+              userId: txData.user_id,
+              transactionId: transaction.uuid,
+              subscriptionPlan: planName,
+              subscriptionDuration: duration,
+            });
+          }
         }
       }
     }
