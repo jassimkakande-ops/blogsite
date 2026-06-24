@@ -77,7 +77,7 @@ class ReelplexiService {
       headers: {
         Authorization: `Bearer ${ReelplexiConfig.apiKey}`,
       },
-      next: { revalidate: 3600 }, // Cache for 1 hour
+      cache: 'no-store', // Prevent Next.js from caching API responses (avoids serving stale/empty data)
     })
 
     if (!response.ok) {
@@ -313,6 +313,39 @@ class ReelplexiService {
     const embedUrl = `${ReelplexiConfig.baseUrl.replace('api.', 'embed.')}/tv/${seriesId}/${season}/${episode}?key=${ReelplexiConfig.apiKey}`
     console.log('Falling back to embed URL for episode stream')
     return { stream_url: embedUrl }
+  }
+
+  /**
+   * Fetch a dedicated Wasabi presigned download URL for a movie.
+   * The URL has response-content-disposition=attachment baked in so the
+   * browser triggers a download instead of playing inline.
+   */
+  static async getMovieDownloadUrl(id: string): Promise<string> {
+    try {
+      const response = await this.getJson(`/v1/download/movie/${id}`)
+      const downloadUrl = response.download_url as string
+      if (!downloadUrl) throw new Error('download_url missing from API response')
+      return downloadUrl
+    } catch (e: any) {
+      console.error('[ReelplexiService] Error fetching movie download URL:', e)
+      throw e
+    }
+  }
+
+  /**
+   * Fetch a dedicated Wasabi presigned download URL for a TV episode.
+   * The URL has response-content-disposition=attachment baked in.
+   */
+  static async getEpisodeDownloadUrl(seriesId: string, season: number, episode: number): Promise<string> {
+    try {
+      const response = await this.getJson(`/v1/download/tv/${seriesId}/${season}/${episode}`)
+      const downloadUrl = response.download_url as string
+      if (!downloadUrl) throw new Error('download_url missing from API response')
+      return downloadUrl
+    } catch (e: any) {
+      console.error('[ReelplexiService] Error fetching episode download URL:', e)
+      throw e
+    }
   }
 
   static async getGenres(): Promise<Array<{ id: string; name: string }>> {
