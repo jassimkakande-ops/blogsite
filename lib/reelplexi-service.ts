@@ -520,8 +520,30 @@ class ReelplexiService {
 
   static async getMovieDownloadUrl(id: string): Promise<string> {
     try {
-      const response = await this.getJson(`/v1/download/movie/${id}`)
-      return response.download_url as string
+      if (!ReelplexiConfig.isConfigured) {
+        throw new Error('Reelplexi API key is missing')
+      }
+      const url = `${ReelplexiConfig.baseUrl}/v1/download/movie/${id}`;
+      const response = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${ReelplexiConfig.apiKey}`,
+          'X-API-Key': ReelplexiConfig.apiKey,
+        },
+        cache: 'no-store',
+      });
+      if (!response.ok) {
+        let message = 'Unknown API error'
+        try {
+          const body = await response.json()
+          message = body.detail || body.error || message
+        } catch {
+          message = await response.text() || message
+        }
+        throw new Error(`Reelplexi API error (${response.status}): ${message}`)
+      }
+      const data = await response.json();
+      return data.download_url as string;
     } catch (e: any) {
       console.error('Error fetching movie download URL:', e)
       throw e
@@ -530,8 +552,30 @@ class ReelplexiService {
 
   static async getEpisodeDownloadUrl(seriesId: string, season: number, episode: number): Promise<string> {
     try {
-      const response = await this.getJson(`/v1/download/tv/${seriesId}/${season}/${episode}`)
-      return response.download_url as string
+      if (!ReelplexiConfig.isConfigured) {
+        throw new Error('Reelplexi API key is missing')
+      }
+      const url = `${ReelplexiConfig.baseUrl}/v1/download/tv/${seriesId}/${season}/${episode}`;
+      const response = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${ReelplexiConfig.apiKey}`,
+          'X-API-Key': ReelplexiConfig.apiKey,
+        },
+        cache: 'no-store',
+      });
+      if (!response.ok) {
+        let message = 'Unknown API error'
+        try {
+          const body = await response.json()
+          message = body.detail || body.error || message
+        } catch {
+          message = await response.text() || message
+        }
+        throw new Error(`Reelplexi API error (${response.status}): ${message}`)
+      }
+      const data = await response.json();
+      return data.download_url as string;
     } catch (e: any) {
       console.error('Error fetching episode download URL:', e)
       throw e
