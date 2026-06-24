@@ -75,7 +75,9 @@ class ReelplexiService {
 
     const response = await fetch(url.toString(), {
       headers: {
-        Authorization: `Bearer ${ReelplexiConfig.apiKey}`,
+        'Content-Type': 'application/json',
+        'X-API-Key': ReelplexiConfig.apiKey,
+        'Authorization': `Bearer ${ReelplexiConfig.apiKey}`,
       },
       cache: 'no-store', // Prevent Next.js from caching API responses (avoids serving stale/empty data)
     })
