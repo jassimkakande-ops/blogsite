@@ -2,31 +2,33 @@ import { NextRequest, NextResponse } from 'next/server';
 import ReelplexiService from '@/lib/reelplexi-service';
 
 /**
- * Proxy download route that streams the file through our server.
- * This forces the browser to download rather than play the video,
- * because the `a.download` attribute only works on same-origin URLs.
+ * Download route that fetches a presigned download URL from the backend
+ * and redirects the user to it.
+ *
+ * This relies on the Reelplexi backend properly signing the URL with Wasabi keys
+ * so that the resulting S3 URL contains the `response-content-disposition=attachment`
+ * query parameter. When Chrome follows the redirect to that signed URL, Wasabi
+ * forces the download.
  *
  * Two modes:
  *
- * 1. Direct proxy (streamit pattern):
- *    ?url=<signed-url>&filename=<name.mp4>
- *    Streams the upstream file through with Content-Disposition: attachment
- *    and Content-Type: application/octet-stream so the browser downloads it.
+ * 1. Direct redirect (url already known):
+ *    ?url=<signed-url>
+ *    Redirects to the provided URL.
  *
- * 2. Reelplexi lookup (legacy):
+ * 2. Reelplexi lookup:
  *    ?id=<id>&type=movie|episode&season=<n>&episode=<n>
- *    Resolves the stream URL from Reelplexi, then proxies it through.
+ *    Resolves the dedicated download URL from Reelplexi server-side, then redirects.
  */
 export async function GET(req: NextRequest) {
   const url = req.nextUrl.searchParams.get('url');
-  const filename = req.nextUrl.searchParams.get('filename') || 'download.mp4';
 
-  // Mode 1: Direct proxy — url is already known
+  // Mode 1: Direct redirect — url is already known
   if (url) {
-    return proxyDownload(url, filename);
+    return NextResponse.redirect(url);
   }
 
-  // Mode 2: Resolve URL from Reelplexi first
+  // Mode 2: Resolve URL from Reelplexi server-side
   const id = req.nextUrl.searchParams.get('id');
   const type = req.nextUrl.searchParams.get('type') || 'movie';
   const season = req.nextUrl.searchParams.get('season');
@@ -37,67 +39,34 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    let streamData = null;
+    let resolvedUrl: string | null = null;
 
     if (type === 'movie') {
-      streamData = await ReelplexiService.getMovieStream(id);
+      try {
+        resolvedUrl = await ReelplexiService.getMovieDownloadUrl(id);
+      } catch (e: any) {
+        return NextResponse.json({ error: 'Failed to get movie download url', details: e.message }, { status: 500 });
+      }
     } else if (type === 'episode' && season && episode) {
-      streamData = await ReelplexiService.getEpisodeStream(
-        id,
-        parseInt(season),
-        parseInt(episode)
-      );
+      try {
+        resolvedUrl = await ReelplexiService.getEpisodeDownloadUrl(
+          id,
+          parseInt(season, 10),
+          parseInt(episode, 10)
+        );
+      } catch (e: any) {
+         return NextResponse.json({ error: 'Failed to get episode download url', details: e.message }, { status: 500 });
+      }
     }
 
-    if (!streamData || (!streamData.stream_url && !streamData.proxy_url)) {
-      return NextResponse.json({ error: 'Stream URL not available' }, { status: 404 });
-    }
-
-    const resolvedUrl = streamData.proxy_url || streamData.stream_url;
     if (!resolvedUrl) {
-      return NextResponse.json({ error: 'Stream URL not available' }, { status: 404 });
-    }
-    return proxyDownload(resolvedUrl, filename);
-  } catch (error) {
-    console.error('[Download Proxy] Reelplexi lookup error:', error);
-    return NextResponse.json({ error: 'Failed to resolve download URL' }, { status: 500 });
-  }
-}
-
-/**
- * Proxy the upstream URL through our server as a forced download.
- * Content-Type is set to application/octet-stream so the browser
- * treats it as a binary file rather than trying to play it inline.
- */
-async function proxyDownload(url: string, filename: string) {
-  try {
-    const upstream = await fetch(url);
-
-    if (!upstream.ok) {
-      return NextResponse.json(
-        { error: `Upstream returned ${upstream.status}` },
-        { status: upstream.status }
-      );
+      return NextResponse.json({ error: 'Download URL not available, resolvedUrl was null' }, { status: 404 });
     }
 
-    const contentLength = upstream.headers.get('content-length');
-
-    const headers = new Headers({
-      'Content-Disposition': `attachment; filename="${filename}"`,
-      'Content-Type': 'application/octet-stream',
-    });
-
-    if (contentLength) {
-      headers.set('Content-Length', contentLength);
-    }
-
-    // Stream the body through — avoids loading the entire file into memory
-    return new NextResponse(upstream.body, {
-      status: 200,
-      headers,
-    });
+    // Redirect the browser directly to the Wasabi presigned URL.
+    return NextResponse.redirect(resolvedUrl);
   } catch (error: any) {
-    console.error('[Download Proxy] Error:', error.message);
-    return NextResponse.json({ error: 'Download failed' }, { status: 500 });
+    console.error('[Download API] Reelplexi lookup error:', error);
+    return NextResponse.json({ error: 'Failed to resolve download URL', details: error.message }, { status: 500 });
   }
 }

@@ -518,6 +518,26 @@ class ReelplexiService {
     }
   }
 
+  static async getMovieDownloadUrl(id: string): Promise<string> {
+    try {
+      const response = await this.getJson(`/v1/download/movie/${id}`)
+      return response.download_url as string
+    } catch (e: any) {
+      console.error('Error fetching movie download URL:', e)
+      throw e
+    }
+  }
+
+  static async getEpisodeDownloadUrl(seriesId: string, season: number, episode: number): Promise<string> {
+    try {
+      const response = await this.getJson(`/v1/download/tv/${seriesId}/${season}/${episode}`)
+      return response.download_url as string
+    } catch (e: any) {
+      console.error('Error fetching episode download URL:', e)
+      throw e
+    }
+  }
+
   private static titleCase(value: string): string {
     return value
       .split(' ')
