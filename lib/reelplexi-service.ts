@@ -66,6 +66,7 @@ class ReelplexiService {
       throw new Error('Reelplexi API key is missing')
     }
 
+    const apiKey = ReelplexiConfig.apiKey
     const url = new URL(`${ReelplexiConfig.baseUrl}${path}`)
     if (query) {
       Object.entries(query).forEach(([key, value]) => {
@@ -73,29 +74,54 @@ class ReelplexiService {
       })
     }
 
+    // Diagnostic: log the exact URL and a masked key so we can confirm what's being sent
+    console.log(`[ReelplexiService] --> ${url.toString()}`)
+    console.log(`[ReelplexiService]     X-API-Key / Bearer: ${apiKey.substring(0, 8)}... (len=${apiKey.length})`)
+
     const response = await fetch(url.toString(), {
       headers: {
         'Content-Type': 'application/json',
-        'X-API-Key': ReelplexiConfig.apiKey,
-        'Authorization': `Bearer ${ReelplexiConfig.apiKey}`,
+        'X-API-Key': apiKey,
+        'Authorization': `Bearer ${apiKey}`,
       },
-      cache: 'no-store', // Prevent Next.js from caching API responses (avoids serving stale/empty data)
+      cache: 'no-store',
     })
+
+    // Always capture raw body text first so we can log it before parsing
+    const rawText = await response.text()
+
+    console.log(`[ReelplexiService] <-- HTTP ${response.status} ${response.statusText}`)
+    console.log(`[ReelplexiService]     Content-Type: ${response.headers.get('content-type')}`)
+    console.log(`[ReelplexiService]     Raw body: ${rawText.substring(0, 500)}`)
 
     if (!response.ok) {
       let message = 'Unknown API error'
       try {
-        const body = await response.json()
-        if (body.error) {
-          message = typeof body.error === 'object' ? body.error.message : body.error
+        const body = JSON.parse(rawText)
+        // Check all common Reelplexi error fields
+        if (body.detail) {
+          message = typeof body.detail === 'string'
+            ? body.detail
+            : (body.detail?.error?.message || JSON.stringify(body.detail))
+        } else if (body.error) {
+          message = typeof body.error === 'object' ? (body.error.message || JSON.stringify(body.error)) : body.error
+        } else if (body.message) {
+          message = body.message
+        } else {
+          // Fall back to the full body so nothing is hidden
+          message = rawText.substring(0, 300)
         }
       } catch {
-        message = await response.text() || message
+        message = rawText.substring(0, 300) || message
       }
       throw new Error(`Reelplexi API error (${response.status}): ${message}`)
     }
 
-    return response.json()
+    try {
+      return JSON.parse(rawText)
+    } catch {
+      throw new Error(`Reelplexi response is not JSON: ${rawText.substring(0, 200)}`)
+    }
   }
 
   private static normalizeMovie(raw: any): ReelplexiMovie {
@@ -323,13 +349,15 @@ class ReelplexiService {
    * browser triggers a download instead of playing inline.
    */
   static async getMovieDownloadUrl(id: string): Promise<string> {
+    console.log(`[ReelplexiService] getMovieDownloadUrl called for id=${id}`)
     try {
       const response = await this.getJson(`/v1/download/movie/${id}`)
+      console.log('[ReelplexiService] getMovieDownloadUrl raw response:', JSON.stringify(response))
       const downloadUrl = response.download_url as string
-      if (!downloadUrl) throw new Error('download_url missing from API response')
+      if (!downloadUrl) throw new Error(`download_url missing from API response. Full response: ${JSON.stringify(response)}`)
       return downloadUrl
     } catch (e: any) {
-      console.error('[ReelplexiService] Error fetching movie download URL:', e)
+      console.error('[ReelplexiService] getMovieDownloadUrl FAILED:', e.message)
       throw e
     }
   }
@@ -339,13 +367,15 @@ class ReelplexiService {
    * The URL has response-content-disposition=attachment baked in.
    */
   static async getEpisodeDownloadUrl(seriesId: string, season: number, episode: number): Promise<string> {
+    console.log(`[ReelplexiService] getEpisodeDownloadUrl called for seriesId=${seriesId} s=${season} ep=${episode}`)
     try {
       const response = await this.getJson(`/v1/download/tv/${seriesId}/${season}/${episode}`)
+      console.log('[ReelplexiService] getEpisodeDownloadUrl raw response:', JSON.stringify(response))
       const downloadUrl = response.download_url as string
-      if (!downloadUrl) throw new Error('download_url missing from API response')
+      if (!downloadUrl) throw new Error(`download_url missing from API response. Full response: ${JSON.stringify(response)}`)
       return downloadUrl
     } catch (e: any) {
-      console.error('[ReelplexiService] Error fetching episode download URL:', e)
+      console.error('[ReelplexiService] getEpisodeDownloadUrl FAILED:', e.message)
       throw e
     }
   }
