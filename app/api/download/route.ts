@@ -2,18 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import ReelplexiService from '@/lib/reelplexi-service';
 
 /**
- * Download route that fetches a presigned download URL from the Reelplexi backend
- * and redirects the browser directly to it.
+ * Download route that fetches a presigned download URL from the backend
+ * and redirects the user to it.
  *
- * Uses the dedicated /v1/download/ endpoints which return a signed Wasabi S3 URL
- * with response-content-disposition=attachment so the browser downloads the file
- * directly from the CDN — avoiding large-file timeouts through the Next.js server.
+ * This relies on the Reelplexi backend properly signing the URL with Wasabi keys
+ * so that the resulting S3 URL contains the `response-content-disposition=attachment`
+ * query parameter. When Chrome follows the redirect to that signed URL, Wasabi
+ * forces the download.
  *
  * Two modes:
  *
  * 1. Direct redirect (url already known):
  *    ?url=<signed-url>
- *    Redirects straight to the provided URL.
+ *    Redirects to the provided URL.
  *
  * 2. Reelplexi lookup:
  *    ?id=<id>&type=movie|episode&season=<n>&episode=<n>
@@ -54,18 +55,18 @@ export async function GET(req: NextRequest) {
           parseInt(episode, 10)
         );
       } catch (e: any) {
-        return NextResponse.json({ error: 'Failed to get episode download url', details: e.message }, { status: 500 });
+         return NextResponse.json({ error: 'Failed to get episode download url', details: e.message }, { status: 500 });
       }
     }
 
     if (!resolvedUrl) {
-      return NextResponse.json({ error: 'Download URL not available' }, { status: 404 });
+      return NextResponse.json({ error: 'Download URL not available, resolvedUrl was null' }, { status: 404 });
     }
 
     // Redirect the browser directly to the Wasabi presigned URL.
     return NextResponse.redirect(resolvedUrl);
   } catch (error: any) {
-    console.error('[Download API] Error:', error);
+    console.error('[Download API] Reelplexi lookup error:', error);
     return NextResponse.json({ error: 'Failed to resolve download URL', details: error.message }, { status: 500 });
   }
 }
