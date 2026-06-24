@@ -524,7 +524,7 @@ class ReelplexiService {
         throw new Error('Reelplexi API key is missing')
       }
       const url = `${ReelplexiConfig.baseUrl}/v1/download/movie/${id}`;
-      const response = await fetch(url, {
+      const res = await fetch(url, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${ReelplexiConfig.apiKey}`,
@@ -532,17 +532,22 @@ class ReelplexiService {
         },
         cache: 'no-store',
       });
-      if (!response.ok) {
-        let message = 'Unknown API error'
+      if (!res.ok) {
+        const text = await res.text();
+        let message = 'Unknown API error';
         try {
-          const body = await response.json()
-          message = body.detail || body.error || message
+          const body = JSON.parse(text);
+          if (body.detail) {
+            message = typeof body.detail === 'string' ? body.detail : (body.detail.error?.message || JSON.stringify(body.detail));
+          } else if (body.error) {
+            message = typeof body.error === 'string' ? body.error : (body.error.message || JSON.stringify(body.error));
+          }
         } catch {
-          message = await response.text() || message
+          message = text || message;
         }
-        throw new Error(`Reelplexi API error (${response.status}): ${message}`)
+        throw new Error(`Reelplexi API error (${res.status}): ${message}`);
       }
-      const data = await response.json();
+      const data = await res.json();
       return data.download_url as string;
     } catch (e: any) {
       console.error('Error fetching movie download URL:', e)
@@ -568,7 +573,11 @@ class ReelplexiService {
         let message = 'Unknown API error'
         try {
           const body = await response.json()
-          message = body.detail || body.error || message
+          if (body.detail) {
+            message = typeof body.detail === 'string' ? body.detail : (body.detail.error?.message || JSON.stringify(body.detail))
+          } else if (body.error) {
+            message = typeof body.error === 'string' ? body.error : (body.error.message || JSON.stringify(body.error))
+          }
         } catch {
           message = await response.text() || message
         }
