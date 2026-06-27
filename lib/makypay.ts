@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase, supabaseAdmin } from './supabase';
 
 export class MakyPayService {
   private static readonly BASE_URL = 'https://wire-api.makylegacy.com/api/v1';
@@ -192,7 +192,7 @@ export class MakyPayService {
     const expiryDate = new Date(now.getTime() + subscriptionDuration * 24 * 60 * 60 * 1000);
 
     // Check if subscription already exists for this transaction
-    const { data: existingSub } = await supabase
+    const { data: existingSub } = await supabaseAdmin
       .from('subscriptions')
       .select('id')
       .eq('transaction_id', transactionId)
@@ -203,7 +203,7 @@ export class MakyPayService {
       return;
     }
 
-    const { error: subscriptionError } = await supabase.from('subscriptions').insert({
+    const { error: subscriptionError } = await supabaseAdmin.from('subscriptions').insert({
       user_id: userId,
       plan: subscriptionPlan,
       payment_method: 'makypay_mobile_money',
@@ -212,7 +212,7 @@ export class MakyPayService {
     });
     if (subscriptionError) throw new MakyPayException('Failed to create subscription record');
 
-    const { error: profileError } = await supabase
+    const { error: profileError } = await supabaseAdmin
       .from('profiles')
       .update({
         subscription: subscriptionPlan,
@@ -303,7 +303,7 @@ export class MakyPayService {
     );
 
     if (event_type === 'collection.completed') {
-      const { data: txData } = await supabase
+      const { data: txData } = await supabaseAdmin
         .from('makypay_transactions')
         .select('user_id, description, amount')
         .eq('uuid', transaction.uuid)
@@ -315,7 +315,7 @@ export class MakyPayService {
           const planName = planMatch[1].toLowerCase();
           
           // Check if already processed to avoid double subscription
-          const { data: existingSub } = await supabase
+          const { data: existingSub } = await supabaseAdmin
             .from('subscriptions')
             .select('id')
             .eq('transaction_id', transaction.uuid)
@@ -323,7 +323,7 @@ export class MakyPayService {
             
           if (!existingSub) {
             // Get actual plan duration
-            const { data: planData } = await supabase
+            const { data: planData } = await supabaseAdmin
               .from('plans')
               .select('duration_in_days')
               .ilike('name', `%${planName}%`)
@@ -350,7 +350,7 @@ export class MakyPayService {
     type: 'collection' | 'disbursement'
   ): Promise<void> {
     try {
-      const { error } = await supabase.from('makypay_transactions').insert({
+      const { error } = await supabaseAdmin.from('makypay_transactions').insert({
         user_id: userId,
         uuid: transaction.uuid,
         reference: transaction.reference,
@@ -378,7 +378,7 @@ export class MakyPayService {
     try {
       const updateData: any = { status, updated_at: new Date().toISOString() };
       if (errorMessage) updateData.error_message = errorMessage;
-      const { error } = await supabase
+      const { error } = await supabaseAdmin
         .from('makypay_transactions')
         .update(updateData)
         .eq('uuid', uuid);
