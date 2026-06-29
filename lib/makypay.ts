@@ -192,13 +192,14 @@ export class MakyPayService {
     const expiryDate = new Date(now.getTime() + subscriptionDuration * 24 * 60 * 60 * 1000);
 
     // Check if subscription already exists for this transaction
-    const { data: existingSub } = await supabaseAdmin
-      .from('subscriptions')
-      .select('id')
+    // We check the transactions table instead since subscriptions doesn't have transaction_id
+    const { data: existingTx } = await supabaseAdmin
+      .from('makypay_transactions')
+      .select('status')
       .eq('transaction_id', transactionId)
       .maybeSingle();
 
-    if (existingSub) {
+    if (existingTx && existingTx.status === 'completed') {
       console.log(`Subscription for transaction ${transactionId} already processed.`);
       return;
     }
@@ -207,7 +208,6 @@ export class MakyPayService {
       user_id: userId,
       plan: subscriptionPlan,
       payment_method: 'makypay_mobile_money',
-      transaction_id: transactionId,
       subscribed_at: now.toISOString(),
     });
     if (subscriptionError) throw new MakyPayException('Failed to create subscription record');
