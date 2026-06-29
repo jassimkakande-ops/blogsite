@@ -153,15 +153,16 @@ export class MakyPayService {
 
   static async checkTransactionStatus(transactionId: string): Promise<MakyPayTransaction> {
     const response = await this.request<any>(`/transactions/${transactionId}`);
+    const tx = response.data.transaction || response.data;
     return {
-      uuid: response.data.uuid,
-      reference: response.data.reference,
-      status: response.data.status,
-      amount: response.data.amount?.raw || 0,
-      provider: response.data.provider || 'unknown',
-      providerReference: response.data.provider_reference,
-      createdAt: response.data.created_at,
-      updatedAt: response.data.updated_at,
+      uuid: tx.uuid,
+      reference: tx.reference,
+      status: tx.status,
+      amount: tx.amount?.raw || 0,
+      provider: tx.provider || 'unknown',
+      providerReference: tx.provider_reference,
+      createdAt: tx.created_at,
+      updatedAt: tx.updated_at,
     };
   }
 
@@ -185,22 +186,24 @@ export class MakyPayService {
   }): Promise<void> {
     const { userId, transactionId, subscriptionPlan, subscriptionDuration } = params;
     const transaction = await this.checkTransactionStatus(transactionId);
-    if (transaction.status !== 'completed') {
+    if (transaction.status !== 'completed' && transaction.status !== 'sandbox') {
       throw new MakyPayException(`Payment not completed. Status: ${transaction.status}`);
     }
     const now = new Date();
     const expiryDate = new Date(now.getTime() + subscriptionDuration * 24 * 60 * 60 * 1000);
 
-    // Check if subscription already exists for this transaction
-    // We check the transactions table instead since subscriptions doesn't have transaction_id
-    const { data: existingTx } = await supabaseAdmin
-      .from('makypay_transactions')
-      .select('status')
-      .eq('transaction_id', transactionId)
+    // Check if a subscription was literally just created in the last 5 minutes to avoid duplicate webhooks
+    const fiveMinsAgo = new Date(Date.now() - 5 * 60000).toISOString();
+    const { data: recentSub } = await supabaseAdmin
+      .from('subscriptions')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('plan', subscriptionPlan)
+      .gte('subscribed_at', fiveMinsAgo)
       .maybeSingle();
 
-    if (existingTx && existingTx.status === 'completed') {
-      console.log(`Subscription for transaction ${transactionId} already processed.`);
+    if (recentSub) {
+      console.log(`Subscription for user ${userId} plan ${subscriptionPlan} recently processed. Ignoring duplicate.`);
       return;
     }
 
@@ -306,7 +309,7 @@ export class MakyPayService {
       const { data: txData } = await supabaseAdmin
         .from('makypay_transactions')
         .select('user_id, description, amount')
-        .eq('uuid', transaction.uuid)
+        .eq('transaction_uuid', transaction.uuid)
         .single();
 
       if (txData?.description) {
@@ -315,10 +318,13 @@ export class MakyPayService {
           const planName = planMatch[1].toLowerCase();
           
           // Check if already processed to avoid double subscription
+          const fiveMinsAgo = new Date(Date.now() - 5 * 60000).toISOString();
           const { data: existingSub } = await supabaseAdmin
             .from('subscriptions')
             .select('id')
-            .eq('transaction_id', transaction.uuid)
+            .eq('user_id', txData.user_id)
+            .eq('plan', planName)
+            .gte('subscribed_at', fiveMinsAgo)
             .maybeSingle();
             
           if (!existingSub) {
@@ -352,19 +358,18 @@ export class MakyPayService {
     try {
       const { error } = await supabaseAdmin.from('makypay_transactions').insert({
         user_id: userId,
-        uuid: transaction.uuid,
+        transaction_uuid: transaction.uuid,
         reference: transaction.reference,
-        type,
         amount: transaction.amount,
         currency: 'UGX',
-        phone_number: transaction.phoneNumber || null,
-        provider: transaction.provider,
-        status: transaction.status,
-        description: transaction.description,
+        phone_number: transaction.phoneNumber || 'unknown',
+        provider: transaction.provider || null,
+        status: 'processing',
+        description: transaction.description || null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       });
-      if (error) console.error('Failed to store transaction:', error);
+      if (error) console.error('Error storing makypay tx:', error);
     } catch (error) {
       console.error('Failed to store transaction:', error);
     }
@@ -381,7 +386,7 @@ export class MakyPayService {
       const { error } = await supabaseAdmin
         .from('makypay_transactions')
         .update(updateData)
-        .eq('uuid', uuid);
+        .eq('transaction_uuid', uuid);
       if (error) console.error('Failed to update transaction:', error);
     } catch (error) {
       console.error('Failed to update transaction:', error);

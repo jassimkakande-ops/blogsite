@@ -10,7 +10,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
-    const callbackUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/makypay/webhook`;
+    const host = request.headers.get('host') || 'localhost:4577';
+    const protocol = host.includes('localhost') ? 'http' : 'https';
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`;
+    // MakyPay API crashes with 500 if callback_url contains localhost
+    const callbackUrl = baseUrl.includes('localhost') ? undefined : `${baseUrl}/api/makypay/webhook`;
 
     let result;
     

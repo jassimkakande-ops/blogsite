@@ -111,14 +111,12 @@ function PaymentPageContent() {
     setDetectedMNO(modalDetectedMNO);
     setShowPaymentModal(false);
 
-    // Trigger payment after a short delay to allow state updates
-    setTimeout(() => {
-      handlePayment();
-    }, 100);
+    handlePayment(modalPhoneNumber);
   };
 
-  const handlePayment = async () => {
-    if (!selectedPlan || !phoneNumber || !user) return;
+  const handlePayment = async (phoneToUse?: string) => {
+    const finalPhone = phoneToUse || phoneNumber;
+    if (!selectedPlan || !finalPhone || !user) return;
 
     setIsProcessing(true);
     setPaymentStatus('processing');
@@ -133,7 +131,7 @@ function PaymentPageContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId: user.id,
-          phoneNumber,
+          phoneNumber: finalPhone,
           amount,
           description: `Subscription: ${selectedPlan.name}`,
         }),
@@ -162,7 +160,7 @@ function PaymentPageContent() {
         
         if (!pollResponse.ok) throw new Error(pollData.error || 'Failed to check payment status');
 
-        if (pollData.status === 'completed' || pollData.status === 'failed' || pollData.status === 'cancelled') {
+        if (pollData.status === 'completed' || pollData.status === 'sandbox' || pollData.status === 'failed' || pollData.status === 'cancelled') {
           finalResult = pollData;
           break;
         }
@@ -174,7 +172,7 @@ function PaymentPageContent() {
         throw new Error('Payment timed out or is taking too long. If you paid successfully, your account will be updated automatically.');
       }
 
-      if (finalResult.status === 'completed') {
+      if (finalResult.status === 'completed' || finalResult.status === 'sandbox') {
         const completeResponse = await fetch('/api/makypay/complete', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
