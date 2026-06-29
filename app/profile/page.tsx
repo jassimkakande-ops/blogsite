@@ -5,20 +5,36 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getProfile, Profile } from '@/lib/profiles';
 
+import { supabase } from '@/lib/supabase';
+
 export default function ProfilePage() {
   const { user } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [genresMap, setGenresMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const fetchProfileData = async () => {
       if (user) {
         const prof = await getProfile(user.id);
         setProfile(prof);
+
+        if (prof?.favorite_genres && prof.favorite_genres.length > 0) {
+          const { data, error } = await supabase
+            .from('genres')
+            .select('id, name')
+            .in('id', prof.favorite_genres);
+            
+          if (!error && data) {
+            const gMap: Record<string, string> = {};
+            data.forEach(g => gMap[g.id] = g.name);
+            setGenresMap(gMap);
+          }
+        }
       }
       setLoading(false);
     };
-    fetchProfile();
+    fetchProfileData();
   }, [user]);
 
   if (!user) {
@@ -59,7 +75,7 @@ export default function ProfilePage() {
               <div className="text-sm text-gray-400 mb-1">Email: {profile.email}</div>
               <div className="text-sm text-gray-400 mb-1">Joined: {profile.created_at ? new Date(profile.created_at).toLocaleDateString() : ''}</div>
               {profile.favorite_genres && profile.favorite_genres.length > 0 && (
-                <div className="text-sm text-gray-400 mb-1">Favorite Genres: {profile.favorite_genres.join(', ')}</div>
+                <div className="text-sm text-gray-400 mb-1">Favorite Genres: {profile.favorite_genres.map(g => genresMap[g] || g).join(', ')}</div>
               )}
               {profile.favorite_vjs && profile.favorite_vjs.length > 0 && (
                 <div className="text-sm text-gray-400 mb-1">Favorite VJs: {profile.favorite_vjs.join(', ')}</div>
